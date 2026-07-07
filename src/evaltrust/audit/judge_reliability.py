@@ -26,7 +26,7 @@ PILLAR = "Judge Reliability"
 def _skip(reason: str) -> Finding:
     return Finding(
         pillar=PILLAR,
-        title="Judge reliability not assessed",
+        title="Not assessed",
         status=Status.SKIP,
         why=(
             "A single judge's verdict could be its own bias. Without a second "
@@ -35,8 +35,7 @@ def _skip(reason: str) -> Finding:
         ),
         how_detected=reason,
         how_to_fix=(
-            "Re-score the outputs with at least one additional judge (a different "
-            "model or a human) and include each judge's scores."
+            "Score the outputs with a second judge (another model or a human)."
         ),
         details={"check": "judge_reliability", "assessed": False},
     )
@@ -98,8 +97,8 @@ def _consensus(data, judges, model_a, model_b) -> Finding:
         how_to_fix=(
             f"Every judge preferred {winner}; the verdict is judge-independent."
             if unanimous else
-            "Do not report a single winner. Investigate why the judges differ "
-            "(rubric ambiguity, position bias) and reconcile them first."
+            "Don't report a single winner. Find why the judges differ and "
+            "reconcile them first."
         ),
         details={"check": "judge_consensus", "per_judge_winner": winners,
                  "unanimous": unanimous},
@@ -152,8 +151,7 @@ def _agreement(ratings: np.ndarray, judges: list[str]) -> Finding:
         how_to_fix=(
             "The judges are consistent with each other."
             if good else
-            f"Tighten the scoring rubric and review {outlier} as a likely "
-            "outlier; consider dropping or recalibrating it."
+            f"Tighten the rubric and review {outlier}; it's the odd one out."
         ),
         details={"check": "inter_judge_agreement", "percent_agreement": agree,
                  "fleiss_kappa": kappa, "outlier_judge": outlier},

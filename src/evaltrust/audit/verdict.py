@@ -25,38 +25,21 @@ class VerdictLevel(Enum):
 
 
 _SUMMARY = {
-    VerdictLevel.HIGH: (
-        "The evidence supports the conclusion. You can act on this comparison "
-        "with confidence."
-    ),
-    VerdictLevel.MODERATE: (
-        "The reported improvement is probably real, but the caveats below should "
-        "be addressed before claiming superiority."
-    ),
-    VerdictLevel.LOW: (
-        "The evidence does not support the conclusion. Do not ship on this "
-        "result as-is — resolve the issues below first."
-    ),
+    VerdictLevel.HIGH: "The result holds up. You can act on it.",
+    VerdictLevel.MODERATE: "Probably real, but check the flags below first.",
+    VerdictLevel.LOW: "Don't ship on this. The problems below undercut the result.",
 }
 
 _NO_EVIDENCE = (
-    "There was not enough evidence in the results to audit the comparison. Add "
-    "per-example scores (and ideally repeated runs and a second judge)."
+    "Not enough in the file to audit. Add per-example scores, and ideally "
+    "repeated runs and a second judge."
 )
 
-# When the comparison reaches a specific outcome, the summary should reflect it
-# rather than always assuming there was an improvement to defend.
+# When the comparison reaches a specific outcome, the summary reflects it rather
+# than assuming there was an improvement to defend.
 _OUTCOME_SUMMARY = {
-    "equivalent": (
-        "The two models are statistically equivalent — no meaningful quality "
-        "difference. Choose between them on cost, latency, or other factors, not "
-        "quality."
-    ),
-    "inconclusive": (
-        "There isn't enough evidence to tell the models apart — this is absence "
-        "of evidence, not proof they're equal. Don't decide yet; the findings "
-        "below show what to collect."
-    ),
+    "equivalent": "No real quality difference between the two. Pick on cost or speed.",
+    "inconclusive": "Not enough data to call a winner. Collect more before deciding.",
 }
 
 

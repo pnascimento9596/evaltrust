@@ -51,6 +51,8 @@ def audit(
         False, "--json", help="Emit the audit as JSON (for CI and tooling)."),
     plain: bool = typer.Option(
         False, "--plain", help="Plain ASCII output (no colour or Unicode)."),
+    explain: bool = typer.Option(
+        False, "--explain", help="Also show why each flag matters and how it was measured."),
 ) -> None:
     """Audit an evaluation and print a confidence verdict.
 
@@ -84,9 +86,9 @@ def audit(
     if as_json:
         typer.echo(json.dumps(report.to_dict(), indent=2))
     elif plain:
-        typer.echo(render_plain(report), nl=False)
+        typer.echo(render_plain(report, explain=explain), nl=False)
     else:
-        print_report(report)
+        print_report(report, explain=explain)
 
     if strict and report.verdict.level is VerdictLevel.LOW:
         raise typer.Exit(code=1)

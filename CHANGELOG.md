@@ -6,6 +6,18 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Redesigned the report to be scannable at a glance: verdict and one line, checks
+  grouped by pillar, a short "What to do" list, and optional "To check more". The
+  full reasoning for each flag now lives behind a new `--explain` flag.
+- Tightened all finding text to be terse and plain; `--plain` output is now
+  guaranteed ASCII.
+
+### Added
+
+- `--explain` flag to show why each flag matters and how it was measured.
+
 ## [0.2.0] — 2026-07-07
 
 ### Added

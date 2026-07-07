@@ -124,23 +124,21 @@ def _decision(outcome, p, alpha, test_name, test_detail, lo, hi, confidence,
         status = Status.PASS
         how = (f"{cap} over {test_detail} gave p = {p:.4f} "
                f"(< alpha {alpha}); the {conf_pct}% interval for the gap is {ci}.")
-        fix = "The improvement is real evidence — safe to act on."
+        fix = "It's a real improvement. Safe to act on."
     elif outcome == "equivalent":
         title = f"{leader} and {trailer} are statistically equivalent"
         status = Status.WARN
         how = (f"The gap was not significant (p = {p:.4f}) and the "
                f"{round((1 - 2 * alpha) * 100)}% interval falls within "
-               f"±{margin} — any real difference is smaller than that margin.")
-        fix = ("Treat the models as equal on quality and decide on cost, latency, "
-               "or other factors — don't claim one is better.")
+               f"+/-{margin}, so any real difference is smaller than that margin.")
+        fix = "Treat them as equal on quality. Decide on cost or speed."
     else:  # inconclusive
         title = f"Improvement of {leader} over {trailer} is inconclusive"
         status = Status.FAIL
         how = (f"{cap} gave p = {p:.4f} (not significant), and "
-               f"the interval {ci} is too wide to rule out a real difference — "
-               "this is absence of evidence, not evidence of no difference.")
-        fix = ("Do not claim a winner yet. Collect more examples (see the "
-               "precision finding) before deciding.")
+               f"the interval {ci} is too wide to rule out a real difference. "
+               "That's missing data, not proof the two are equal.")
+        fix = "Don't call a winner yet. Collect more examples first."
 
     return Finding(
         pillar=PILLAR, title=title, status=status,
@@ -162,9 +160,8 @@ def _effect_size(data, diffs, binary, leader, trailer) -> Finding:
         rd = p_leader - p_trailer
         h = cohens_h(p_leader, p_trailer)
         magnitude = magnitude_label(h)
-        how = (f"{leader} passed {p_leader:.1%} vs {trailer}'s {p_trailer:.1%} — a "
-               f"{rd * 100:+.1f} percentage-point difference (Cohen's h {h:+.3f}, "
-               f"a {magnitude} effect).")
+        how = (f"{leader} passed {p_leader:.1%} vs {trailer}'s {p_trailer:.1%}, a "
+               f"{rd * 100:+.1f} point gap (Cohen's h {h:+.3f}, {magnitude}).")
         details = {"check": "effect_size", "risk_difference": rd,
                    "cohens_h": h, "magnitude": magnitude}
     else:
@@ -190,8 +187,7 @@ def _effect_size(data, diffs, binary, leader, trailer) -> Finding:
         how_to_fix=(
             f"The advantage of {leader} is large enough to matter."
             if meaningful else
-            "The gap may be too small to act on — weigh it against cost, latency, "
-            "and risk before switching models."
+            "Gap may be too small to matter. Weigh it against cost and risk."
         ),
         details=details,
     )
@@ -216,8 +212,8 @@ def _precision(outcome, n, alpha, power_target, smallest_meaningful_effect) -> F
         how = (f"With only {n} examples the smallest effect reliably detectable at "
                f"{power_target:.0%} power is Cohen's d ~ {mde:.2f}; a smaller real "
                "difference would be missed.")
-        fix = (f"Collect about {extra} more examples (~{need_n} total) to detect "
-               f"even a small effect (d = {smallest_meaningful_effect}).")
+        fix = (f"Collect ~{extra} more examples (~{need_n} total) to catch a "
+               "small effect.")
 
     return Finding(
         pillar=PILLAR, title=title, status=status,

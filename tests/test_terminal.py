@@ -42,8 +42,20 @@ def test_report_lists_every_pillar():
         assert pillar in out
 
 
-def test_report_explains_how_to_fix_problems():
-    # Missing runs/judges produce SKIPs whose fixes should be surfaced.
-    report = run_audit(make_data({"A": [0] * 40, "B": [1] * 40}, 40))
-    out = render_report(report).lower()
-    assert "how to fix" in out or "fix" in out
+def test_report_surfaces_actions_for_flagged_findings():
+    # A small, underpowered win yields WARNs whose fixes appear under "What to do".
+    report = run_audit(make_data({"A": [0] * 8, "B": [1, 0] * 4}, 8))
+    out = render_report(report)
+    assert "What to do" in out
+
+
+def test_explain_adds_detail_and_default_omits_it():
+    report = run_audit(make_data({"A": [0, 1] * 60, "B": [1, 0] * 60}, 120))
+    assert "Detail" not in render_report(report)
+    assert "Detail" in render_report(report, explain=True)
+
+
+def test_skip_guidance_shown_under_to_check_more():
+    report = run_audit(make_data({"A": [0] * 40, "B": [1] * 36 + [0] * 4}, 40))
+    out = render_report(report)
+    assert "To check more" in out

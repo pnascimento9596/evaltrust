@@ -1,18 +1,17 @@
 """Render an audit report to the terminal.
 
-Layout follows EvalTrust's report philosophy: a plain-language verdict up top, a
-compact status list of every check, then — for anything that isn't a clean pass —
-the Golden Rule spelled out: why it matters, how we detected it, how to fix it.
-No arbitrary aggregate score anywhere.
+The default view is built to be read in a glance: the verdict and one line, the
+checks grouped by pillar, then a short list of what to do. The full reasoning for
+each flag (why it matters, how we measured it) is one `--explain` away, so the
+common case stays clean and the detail is there when you want it.
 """
 
 from __future__ import annotations
 
 import io
+from collections import OrderedDict
 
-from rich.console import Console, Group
-from rich.panel import Panel
-from rich.rule import Rule
+from rich.console import Console
 from rich.text import Text
 
 from ..audit.runner import AuditReport
@@ -21,130 +20,143 @@ from ..core.schema import Finding, Status
 
 _SYMBOL = {
     Status.PASS: ("✓", "green"),
-    Status.WARN: ("⚠", "yellow"),
+    Status.WARN: ("!", "yellow"),
     Status.FAIL: ("✗", "red"),
-    Status.SKIP: ("·", "dim"),
+    Status.SKIP: ("–", "dim"),
 }
-
-_VERDICT_STYLE = {
-    VerdictLevel.HIGH: "bold green",
-    VerdictLevel.MODERATE: "bold yellow",
-    VerdictLevel.LOW: "bold red",
-}
+_PLAIN_MARK = {Status.PASS: "ok  ", Status.WARN: "warn",
+               Status.FAIL: "fail", Status.SKIP: "--  "}
+_DOT = {VerdictLevel.HIGH: "green", VerdictLevel.MODERATE: "yellow",
+        VerdictLevel.LOW: "red"}
 
 
-def _renderable(report: AuditReport):
-    verdict = report.verdict
-    style = _VERDICT_STYLE[verdict.level]
+def _grouped(findings) -> "OrderedDict[str, list[Finding]]":
+    groups: OrderedDict[str, list[Finding]] = OrderedDict()
+    for f in findings:
+        groups.setdefault(f.pillar, []).append(f)
+    return groups
 
-    header = Text.assemble(
-        ("EvalTrust Audit\n", "bold"),
-        (f"Comparing {report.model_a} vs {report.model_b}  ", "cyan"),
-        (f"· {report.n_examples} examples · source: {report.source_format}", "dim"),
-    )
-    others = [m for m in report.models_available
-              if m not in (report.model_a, report.model_b)]
+
+def _subtitle(report: AuditReport) -> str:
+    return (f"{report.model_a} vs {report.model_b} · "
+            f"{report.n_examples} examples · {report.source_format}")
+
+
+def _others(report: AuditReport) -> list[str]:
+    return [m for m in report.models_available
+            if m not in (report.model_a, report.model_b)]
+
+
+# --------------------------------------------------------------------------- #
+# Rich (colour) rendering
+# --------------------------------------------------------------------------- #
+
+def _renderable(report: AuditReport, explain: bool = False) -> Text:
+    v = report.verdict
+    t = Text()
+
+    t.append("EvalTrust  ", style="bold")
+    t.append(_subtitle(report) + "\n", style="dim")
+    others = _others(report)
     if others:
-        header.append(
-            f"\nCompared the two strongest of {len(report.models_available)} "
-            f"models; also present: {', '.join(others)} "
-            "(use --model-a/--model-b to pick a different pair)", "dim")
+        t.append(f"comparing the two strongest of {len(report.models_available)}; "
+                 f"others: {', '.join(others)}\n", style="dim")
 
-    verdict_panel = Panel(
-        Text.assemble((f"{verdict.level.value}\n", style), (verdict.summary, "")),
-        border_style=style, title="Verdict", title_align="left",
-    )
+    t.append("\n")
+    t.append("● ", style=_DOT[v.level])
+    t.append(f"{v.level.value}\n", style=f"bold {_DOT[v.level]}")
+    t.append(v.summary + "\n")
 
-    # Compact status list of every check.
-    checks = Text()
-    for f in report.findings:
-        sym, color = _SYMBOL[f.status]
-        checks.append(f"  {sym} ", style=color)
-        checks.append(f"{f.title}\n")
-        checks.append(f"      {f.pillar}\n", style="dim")
+    for pillar, items in _grouped(report.findings).items():
+        t.append(f"\n{pillar}\n", style="bold")
+        for f in items:
+            sym, color = _SYMBOL[f.status]
+            t.append(f"  {sym} ", style=color)
+            t.append(f.title, style=("dim" if f.status is Status.SKIP else ""))
+            t.append("\n")
 
-    # Detailed Golden-Rule blocks for everything that isn't a clean pass.
-    problems = [f for f in report.findings if f.status is not Status.PASS]
-    detail_blocks = [_detail(f) for f in problems]
+    todo = [f.how_to_fix for f in report.findings
+            if f.status in (Status.WARN, Status.FAIL)]
+    _bullets(t, "What to do", todo)
 
-    parts = [header, Rule(style="dim"), verdict_panel,
-             Rule(" Checks ", style="dim"), checks]
-    if detail_blocks:
-        parts.append(Rule(" What to address ", style="dim"))
-        parts.extend(detail_blocks)
-    return Group(*parts)
+    optional = [f.how_to_fix for f in report.findings if f.status is Status.SKIP]
+    _bullets(t, "To check more", optional, style="dim")
 
-
-def _detail(f: Finding) -> Panel:
-    sym, color = _SYMBOL[f.status]
-    body = Text()
-    body.append("Why it matters  ", style="bold")
-    body.append(f"{f.why}\n")
-    body.append("How we detected ", style="bold")
-    body.append(f"{f.how_detected}\n")
-    body.append("How to fix      ", style="bold")
-    body.append(f"{f.how_to_fix}")
-    return Panel(body, title=f"{sym} {f.title}", title_align="left",
-                 border_style=color)
+    if explain:
+        flagged = [f for f in report.findings if f.status is not Status.PASS]
+        if flagged:
+            t.append("\nDetail\n", style="bold")
+            for f in flagged:
+                sym, color = _SYMBOL[f.status]
+                t.append(f"\n  {sym} ", style=color)
+                t.append(f"{f.title}\n", style="bold")
+                t.append(f"    {f.why}\n", style="dim")
+                t.append(f"    {f.how_detected}\n", style="dim")
+    return t
 
 
-def render_report(report: AuditReport, width: int = 100) -> str:
+def _bullets(t: Text, heading: str, items: list[str], style: str = "") -> None:
+    if not items:
+        return
+    t.append(f"\n{heading}\n", style=(f"bold {style}" if style else "bold"))
+    for item in items:
+        t.append("  • ", style=style or None)
+        t.append(item + "\n", style=style or None)
+
+
+def render_report(report: AuditReport, explain: bool = False, width: int = 90) -> str:
     """Render the report to a plain string (used for tests and piping)."""
     console = Console(record=True, width=width, file=io.StringIO())
-    console.print(_renderable(report))
+    console.print(_renderable(report, explain=explain))
     return console.export_text()
 
 
-def print_report(report: AuditReport) -> None:
+def print_report(report: AuditReport, explain: bool = False) -> None:
     """Print the report to the real terminal with colour."""
-    Console().print(_renderable(report))
+    Console().print(_renderable(report, explain=explain))
 
 
-_PLAIN_MARK = {
-    Status.PASS: "PASS",
-    Status.WARN: "WARN",
-    Status.FAIL: "FAIL",
-    Status.SKIP: "SKIP",
-}
+# --------------------------------------------------------------------------- #
+# Plain ASCII rendering
+# --------------------------------------------------------------------------- #
+
+_ASCII = str.maketrans({
+    "·": "-", "–": "-", "—": "-", "•": "*", "●": "*",
+    "’": "'", "‘": "'", "“": '"', "”": '"', "×": "x",
+})
 
 
-def render_plain(report: AuditReport) -> str:
-    """Render the report as plain ASCII text.
-
-    No colour, no Unicode, no box drawing — safe for Windows terminals, CI log
-    viewers, non-UTF-8 locales, and piping to a file.
-    """
+def render_plain(report: AuditReport, explain: bool = False) -> str:
+    """Render the report as plain ASCII — safe for Windows, CI logs, and pipes."""
     v = report.verdict
-    others = [m for m in report.models_available
-              if m not in (report.model_a, report.model_b)]
-    lines = [
-        "EvalTrust Audit",
-        f"{report.model_a} vs {report.model_b}  "
-        f"({report.n_examples} examples, source: {report.source_format})",
-    ]
+    lines = ["EvalTrust  " + _subtitle(report)]
+    others = _others(report)
     if others:
-        lines.append(
-            f"Compared the two strongest of {len(report.models_available)} models; "
-            f"also present: {', '.join(others)}.")
-    lines += [
-        "",
-        f"VERDICT: {v.level.value.upper()}",
-        v.summary,
-        "",
-        "Checks:",
-    ]
-    for f in report.findings:
-        lines.append(f"  [{_PLAIN_MARK[f.status]}] {f.title}  ({f.pillar})")
+        lines.append(f"comparing the two strongest of "
+                     f"{len(report.models_available)}; others: {', '.join(others)}")
+    lines += ["", f"{v.level.value.upper()}", v.summary]
 
-    problems = [f for f in report.findings if f.status is not Status.PASS]
-    if problems:
-        lines += ["", "What to address:"]
-        for f in problems:
-            lines += [
-                f"  [{_PLAIN_MARK[f.status]}] {f.title}",
-                f"    Why: {f.why}",
-                f"    How: {f.how_detected}",
-                f"    Fix: {f.how_to_fix}",
-                "",
-            ]
-    return "\n".join(lines).rstrip() + "\n"
+    for pillar, items in _grouped(report.findings).items():
+        lines.append("")
+        lines.append(pillar)
+        for f in items:
+            lines.append(f"  [{_PLAIN_MARK[f.status]}] {f.title}")
+
+    todo = [f.how_to_fix for f in report.findings
+            if f.status in (Status.WARN, Status.FAIL)]
+    if todo:
+        lines += ["", "What to do"] + [f"  - {x}" for x in todo]
+
+    optional = [f.how_to_fix for f in report.findings if f.status is Status.SKIP]
+    if optional:
+        lines += ["", "To check more"] + [f"  - {x}" for x in optional]
+
+    if explain:
+        flagged = [f for f in report.findings if f.status is not Status.PASS]
+        if flagged:
+            lines += ["", "Detail"]
+            for f in flagged:
+                lines += [f"  [{_PLAIN_MARK[f.status]}] {f.title}",
+                          f"    {f.why}", f"    {f.how_detected}"]
+
+    return ("\n".join(lines).rstrip() + "\n").translate(_ASCII)

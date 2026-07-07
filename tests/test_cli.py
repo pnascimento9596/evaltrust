@@ -32,7 +32,7 @@ def noise_file(tmp_path):
 def test_audit_prints_report_and_exits_zero(tmp_path):
     result = runner.invoke(app, ["audit", clean_win_file(tmp_path)])
     assert result.exit_code == 0
-    assert "EvalTrust Audit" in result.stdout
+    assert "EvalTrust" in result.stdout
     assert "High Confidence" in result.stdout
 
 
@@ -120,8 +120,15 @@ def test_json_output_still_respects_strict(tmp_path):
 
 
 def test_plain_output_is_ascii_only(tmp_path):
-    result = runner.invoke(app, ["audit", clean_win_file(tmp_path), "--plain"])
+    result = runner.invoke(app, ["audit", noise_file(tmp_path), "--plain"])
     assert result.exit_code == 0
-    assert "[PASS]" in result.stdout
+    assert "[fail]" in result.stdout or "[ok  ]" in result.stdout
     assert result.stdout.isascii()
     assert "╭" not in result.stdout
+
+
+def test_explain_flag_adds_detail(tmp_path):
+    base = runner.invoke(app, ["audit", noise_file(tmp_path)])
+    detailed = runner.invoke(app, ["audit", noise_file(tmp_path), "--explain"])
+    assert "Detail" not in base.stdout
+    assert "Detail" in detailed.stdout

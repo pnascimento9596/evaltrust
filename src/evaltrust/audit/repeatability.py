@@ -20,7 +20,7 @@ PILLAR = "Repeatability"
 def _skip(reason: str) -> Finding:
     return Finding(
         pillar=PILLAR,
-        title="Repeatability not assessed",
+        title="Not assessed",
         status=Status.SKIP,
         why=(
             "A conclusion you can't reproduce isn't a conclusion. Without "
@@ -28,10 +28,7 @@ def _skip(reason: str) -> Finding:
             "lucky draw."
         ),
         how_detected=reason,
-        how_to_fix=(
-            "Evaluate each model 3-5 times (varying the judge/sampling seed) and "
-            "include the per-run scores so EvalTrust can measure rerun stability."
-        ),
+        how_to_fix="Run each model 3-5 times and include the per-run scores.",
         details={"check": "repeatability", "assessed": False},
     )
 
@@ -103,10 +100,10 @@ def _stability(flips, r, stability, overall, model_a, model_b) -> Finding:
             f"and reversed in {flips} (stability {stability:.0%})."
         ),
         how_to_fix=(
-            f"{leader} wins consistently across reruns — the ranking is reliable."
+            f"{leader} wins consistently across reruns; the ranking is reliable."
             if status is Status.PASS else
-            "Do not rely on this ranking. Average more runs, reduce judge "
-            "temperature, or fix seeds until the winner stops changing."
+            "Don't rely on this ranking. Average more runs or fix the seed until "
+            "the winner stops changing."
         ),
         details={"check": "rerun_stability", "runs": r, "flips": flips,
                  "stability": stability, "mean_gap": overall},
@@ -135,8 +132,7 @@ def _variance(gap_std, overall, model_a, model_b) -> Finding:
         how_to_fix=(
             "The gap is stable relative to its run-to-run noise."
             if not noisy else
-            "Average more reruns per model to shrink the measurement noise "
-            "before trusting the size of the gap."
+            "Average more runs to shrink the noise before trusting the gap size."
         ),
         details={"check": "measurement_variance", "gap_std": gap_std,
                  "mean_gap": overall, "snr": snr},

@@ -58,8 +58,7 @@ def _saturation(per_model, pooled) -> Finding:
             f"{ceiling:.3f} ({frac:.0%} of maximum)."
         ),
         how_to_fix=(
-            "Move to a harder or fresher benchmark with more headroom; gains "
-            "measured at the ceiling rarely transfer."
+            "Switch to a harder benchmark. Gains at the ceiling rarely transfer."
             if saturated else
             "There is room to distinguish models on this benchmark."
         ),
@@ -80,8 +79,8 @@ def _discrimination(pooled) -> Finding:
         status=Status.PASS if discriminating else Status.WARN,
         why=(
             "If a benchmark assigns nearly the same score to everything, it "
-            "carries no signal to separate one model from another — any ranking "
-            "it produces is essentially arbitrary."
+            "carries no signal to separate one model from another. Any ranking "
+            "it produces is basically arbitrary."
         ),
         how_detected=(
             f"The pooled standard deviation of scores was {spread:.4f} "
@@ -90,8 +89,7 @@ def _discrimination(pooled) -> Finding:
         how_to_fix=(
             "The benchmark produces a healthy spread of scores."
             if discriminating else
-            "Add harder or more varied examples so the benchmark can actually "
-            "separate models; a flat score distribution can't rank anything."
+            "Add harder, more varied examples. A flat score spread can't rank models."
         ),
         details={"check": "discrimination", "pooled_std": spread,
                  "discriminating": discriminating},

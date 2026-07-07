@@ -60,8 +60,8 @@ def decision(outcome, status):
 
 def test_equivalence_summary_does_not_claim_an_improvement():
     v = compute_verdict([decision("equivalent", Status.WARN)])
-    assert "equivalent" in v.summary.lower()
-    assert "improvement is probably real" not in v.summary.lower()
+    assert "no real quality difference" in v.summary.lower()
+    assert "probably real" not in v.summary.lower()
 
 
 def test_inconclusive_summary_asks_for_more_evidence():
