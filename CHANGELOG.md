@@ -6,6 +6,28 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Python API**: `evaltrust.audit(source)` accepts a path, two paths, or an
+  `EvalData`; `report.to_dict()` is JSON-serializable.
+- **CLI output modes**: `--json` for CI and tooling, `--plain` for ASCII-only
+  output that is safe on Windows terminals, CI logs, and pipes.
+- **Equivalence testing**: the statistical audit can now conclude two models are
+  *statistically equivalent* within a configurable `--equivalence-margin`, instead
+  of forcing every non-significant result to look like a failure.
+- Proportion-appropriate statistics for pass/fail data: **McNemar's exact test**
+  and **Cohen's h** / risk difference.
+
+### Changed
+
+- The Statistical Validity pillar now reports **decision / effect size /
+  precision**. "Not significant" is reported as *inconclusive* or *equivalent*
+  rather than a blunt failure.
+- Replaced post-hoc (observed-effect) power with the prospective **minimum
+  detectable effect**.
+- Verdict summaries reflect the actual outcome (equivalent / inconclusive), not a
+  generic "improvement is probably real".
+
 ## [0.1.0] — 2026-07-07
 
 Initial release.

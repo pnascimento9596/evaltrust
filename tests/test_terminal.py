@@ -31,7 +31,7 @@ def test_noise_report_shows_low_confidence_and_the_failing_title():
     report = run_audit(make_data({"A": [0, 1] * 60, "B": [1, 0] * 60}, 120))
     out = render_report(report)
     assert "Low Confidence" in out
-    assert "not statistically significant" in out.lower()
+    assert "inconclusive" in out.lower()
 
 
 def test_report_lists_every_pillar():

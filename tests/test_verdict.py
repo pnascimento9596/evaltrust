@@ -50,3 +50,20 @@ def test_moderate_reports_the_warnings():
 def test_verdict_has_a_plain_language_summary():
     v = compute_verdict([finding(Status.PASS)])
     assert v.summary.strip()
+
+
+def decision(outcome, status):
+    return Finding(pillar="Statistical Validity", title="t", status=status,
+                   why="w", how_detected="h", how_to_fix="x",
+                   details={"check": "decision", "outcome": outcome})
+
+
+def test_equivalence_summary_does_not_claim_an_improvement():
+    v = compute_verdict([decision("equivalent", Status.WARN)])
+    assert "equivalent" in v.summary.lower()
+    assert "improvement is probably real" not in v.summary.lower()
+
+
+def test_inconclusive_summary_asks_for_more_evidence():
+    v = compute_verdict([decision("inconclusive", Status.FAIL)])
+    assert "enough evidence" in v.summary.lower() or "more" in v.summary.lower()

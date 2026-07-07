@@ -41,6 +41,9 @@ def audit(
     model_b: Optional[str] = typer.Option(
         None, "--model-b", help="Model to compare (or label for the second file)."),
     alpha: float = typer.Option(0.05, "--alpha", help="Significance level."),
+    equivalence_margin: float = typer.Option(
+        0.05, "--equivalence-margin",
+        help="Largest score gap considered practically negligible (for equivalence)."),
     seed: int = typer.Option(0, "--seed", help="Seed for reproducible resampling."),
     strict: bool = typer.Option(
         False, "--strict", help="Exit non-zero if confidence is Low."),
@@ -61,11 +64,13 @@ def audit(
     try:
         if len(results) == 2:
             data = load_comparison(results, label_a=model_a, label_b=model_b)
-            report = run_audit(data, alpha=alpha, seed=seed)
+            report = run_audit(data, alpha=alpha,
+                               equivalence_margin=equivalence_margin, seed=seed)
         else:
             data = load(results[0])
             report = run_audit(data, model_a=model_a, model_b=model_b,
-                               alpha=alpha, seed=seed)
+                               alpha=alpha, equivalence_margin=equivalence_margin,
+                               seed=seed)
     except FileNotFoundError as e:
         _err.print(f"[red]{e}[/red]")
         raise typer.Exit(code=2)

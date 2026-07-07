@@ -54,14 +54,16 @@ def run_audit(
     model_a: str | None = None,
     model_b: str | None = None,
     alpha: float = 0.05,
+    equivalence_margin: float = 0.05,
     seed: int = 0,
 ) -> AuditReport:
     if model_a is None or model_b is None:
         model_a, model_b = _pick_models(data)
 
     findings: list[Finding] = []
-    findings += audit_statistical_validity(data, model_a, model_b,
-                                           alpha=alpha, seed=seed)
+    findings += audit_statistical_validity(
+        data, model_a, model_b, alpha=alpha,
+        equivalence_margin=equivalence_margin, seed=seed)
     findings += audit_benchmark_health(data, [model_a, model_b])
     findings += audit_repeatability(data, model_a, model_b)
     findings += audit_judge_reliability(data, model_a, model_b)

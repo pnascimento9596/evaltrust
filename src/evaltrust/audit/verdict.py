@@ -44,6 +44,28 @@ _NO_EVIDENCE = (
     "per-example scores (and ideally repeated runs and a second judge)."
 )
 
+# When the comparison reaches a specific outcome, the summary should reflect it
+# rather than always assuming there was an improvement to defend.
+_OUTCOME_SUMMARY = {
+    "equivalent": (
+        "The two models are statistically equivalent — no meaningful quality "
+        "difference. Choose between them on cost, latency, or other factors, not "
+        "quality."
+    ),
+    "inconclusive": (
+        "There isn't enough evidence to tell the models apart — this is absence "
+        "of evidence, not proof they're equal. Don't decide yet; the findings "
+        "below show what to collect."
+    ),
+}
+
+
+def _decision_outcome(findings: list[Finding]) -> str | None:
+    for f in findings:
+        if f.details.get("check") == "decision":
+            return f.details.get("outcome")
+    return None
+
 
 @dataclass(frozen=True)
 class Verdict:
@@ -76,4 +98,6 @@ def compute_verdict(findings: list[Finding]) -> Verdict:
     else:
         level, drivers = VerdictLevel.HIGH, []
 
-    return Verdict(level, _SUMMARY[level], drivers)
+    outcome = _decision_outcome(findings)
+    summary = _OUTCOME_SUMMARY.get(outcome, _SUMMARY[level])
+    return Verdict(level, summary, drivers)

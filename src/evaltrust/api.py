@@ -25,6 +25,7 @@ def audit(
     model_a: str | None = None,
     model_b: str | None = None,
     alpha: float = 0.05,
+    equivalence_margin: float = 0.05,
     seed: int = 0,
 ) -> AuditReport:
     """Audit an evaluation and return an :class:`AuditReport`.
@@ -37,18 +38,18 @@ def audit(
     ``model_a`` / ``model_b`` choose which two models to compare (or, for the
     two-file form, label the two files).
     """
+    kw = dict(alpha=alpha, equivalence_margin=equivalence_margin, seed=seed)
+
     if isinstance(source, EvalData):
-        return run_audit(source, model_a=model_a, model_b=model_b,
-                         alpha=alpha, seed=seed)
+        return run_audit(source, model_a=model_a, model_b=model_b, **kw)
 
     if isinstance(source, (list, tuple)):
         paths = list(source)
         if len(paths) == 1:
             data = load(paths[0])
-            return run_audit(data, model_a=model_a, model_b=model_b,
-                             alpha=alpha, seed=seed)
+            return run_audit(data, model_a=model_a, model_b=model_b, **kw)
         data = load_comparison(paths, label_a=model_a, label_b=model_b)
-        return run_audit(data, alpha=alpha, seed=seed)
+        return run_audit(data, **kw)
 
     data = load(source)
-    return run_audit(data, model_a=model_a, model_b=model_b, alpha=alpha, seed=seed)
+    return run_audit(data, model_a=model_a, model_b=model_b, **kw)

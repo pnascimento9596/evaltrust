@@ -67,3 +67,30 @@ def required_n(
         else:
             lo = mid + 1
     return lo
+
+
+def minimum_detectable_effect(
+    n: int, power: float = 0.8, alpha: float = 0.05, tol: float = 1e-4
+) -> float:
+    """Smallest true effect size (Cohen's d) detectable at ``power`` given ``n``.
+
+    This is *prospective* — a property of the sample size, not of the observed
+    result — so it avoids the circularity of post-hoc (observed-effect) power.
+    It answers "how small a real difference could this evaluation have reliably
+    caught?" Power is monotone in the effect size, so we bisect on d.
+    """
+    if n < 2:
+        return float("inf")
+
+    lo, hi = 0.0, 0.5
+    while achieved_power(hi, n, alpha) < power:
+        hi *= 2.0
+        if hi > 1e6:
+            return float("inf")
+    while hi - lo > tol:
+        mid = (lo + hi) / 2.0
+        if achieved_power(mid, n, alpha) >= power:
+            hi = mid
+        else:
+            lo = mid
+    return hi

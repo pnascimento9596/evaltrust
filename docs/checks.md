@@ -10,47 +10,51 @@ averages.
 
 ## Statistical Validity
 
-The core question: is the reported gap real evidence, or noise? Four complementary
-views, each a separate finding.
+The core question: is the reported gap real evidence you can act on? Three
+findings.
 
-### Significance — paired permutation test
+### Decision — significant, equivalent, or inconclusive
 
-Under the null hypothesis the two models are exchangeable on each example, so the
-sign of every per-example difference could equally have been flipped. EvalTrust
-compares the observed mean against the distribution of means under random sign
-flips and reports a two-sided p-value (with the standard `(count + 1) / (N + 1)`
-correction, so it never reports exactly zero). This makes no normality assumption.
+This deliberately avoids the trap of treating "not significant" as a failure
+(that would confuse *absence of evidence* with *evidence of absence*). It returns
+one of three honest outcomes:
 
-- **PASS** when `p < alpha` (default `0.05`).
-- **FAIL** otherwise.
+- **Significant** (**PASS**) — the leader really is ahead. Detected with
+  **McNemar's exact test** for paired pass/fail data, or a **paired permutation
+  test** (sign-flip, two-sided, `(count + 1) / (N + 1)` correction, no normality
+  assumption) for continuous scores. Triggered when `p < alpha` (default `0.05`).
+- **Equivalent** (**WARN**) — a genuine conclusion that the models are the *same*
+  within a margin you set. Established by a two-one-sided-tests (TOST) style check:
+  the `(1 − 2·alpha)` bootstrap interval for the gap lies entirely within
+  ±`equivalence_margin`. This is what lets you answer "is my cheaper model as good
+  as the expensive one?".
+- **Inconclusive** (**FAIL**) — not significant *and* not equivalent: there simply
+  isn't enough evidence to decide. The fix is more data, not a different claim.
 
-### Confidence interval — paired bootstrap
+A bootstrap confidence interval for the gap is reported alongside all three.
 
-Resamples examples with replacement, recomputes the mean difference each time, and
-takes the percentile interval (default 95%). If the interval excludes zero, the
-direction of the gap is solid.
+### Effect size — how big, in interpretable terms
 
-- **PASS** when the interval excludes zero.
-- **WARN** when it overlaps zero (the models are statistically indistinguishable).
+- Continuous scores: **Cohen's *d*** on the paired differences, with a magnitude
+  label (negligible `< 0.2`, small `< 0.5`, medium `< 0.8`, large `≥ 0.8`).
+- Pass/fail scores: the **risk difference** in percentage points plus **Cohen's
+  *h***, the effect size appropriate for proportions (Cohen's *d* assumes roughly
+  continuous data and is not used for 0/1 outcomes).
 
-### Effect size — Cohen's *d*
+**PASS** when the effect is medium or large; **WARN** when small or negligible —
+because a real gap can still be too small to matter in production.
 
-`mean(differences) / sd(differences)`, reported with a plain-language magnitude
-using conventional thresholds: negligible (`< 0.2`), small (`< 0.5`), medium
-(`< 0.8`), large (`>= 0.8`). Significance says a gap is real; effect size says
-whether it is big enough to matter.
+### Precision — minimum detectable effect (not post-hoc power)
 
-- **PASS** when the effect is medium or large.
-- **WARN** when it is small or negligible.
+Rather than the widely-criticised *observed-effect* (post-hoc) power, EvalTrust
+reports the **minimum detectable effect**: the smallest true effect this sample
+size could reliably detect at 80% power, computed from the exact noncentral-*t*
+distribution. This is a property of the design, not of the observed result.
 
-### Power / sample size
-
-Using the observed effect and an exact noncentral-*t* model, EvalTrust computes the
-power the test had to detect that effect, and the number of examples needed for
-80% power.
-
-- **PASS** when achieved power is at least 80%.
-- **WARN** otherwise, with a recommendation for how many more examples to collect.
+- **PASS** when the comparison reached a conclusion (significant or equivalent) —
+  the sample was adequate.
+- **WARN** when inconclusive, with a prospective recommendation for how many
+  examples would be needed to detect even a small effect.
 
 ## Benchmark Health
 
@@ -123,3 +127,26 @@ The overall verdict follows simple, documented rules rather than a weighted scor
 - **High Confidence** — every applicable check passes.
 
 SKIP findings never raise confidence; they represent evidence you don't yet have.
+
+## Assumptions and limitations
+
+We would rather you trust EvalTrust for the right reasons than oversell it. The
+current release assumes:
+
+- **Paired data.** Both models are scored on the *same* examples, matched by id.
+  Unpaired comparisons (different test sets) are out of scope.
+- **One scalar score per example per model.** Multi-metric suites (several
+  metrics per example) and pairwise-preference judgments (A-beats-B votes) are not
+  yet modelled — audit each metric's scores separately for now.
+- **A two-model comparison.** When a file has more than two models, the two
+  strongest by mean are compared; there is no all-pairs sweep yet, and therefore
+  no multiple-comparison correction across pairs.
+- **Opinionated thresholds.** `alpha` and the equivalence margin are configurable;
+  the effect-size, saturation, spread, and agreement cutoffs use conventional
+  defaults that may not fit every domain.
+- **Monte-Carlo methods are seeded.** Results are reproducible for a given seed,
+  but a p-value or interval sitting exactly on a threshold can move slightly if
+  you change the seed.
+
+These are the honest edges of the tool. Several are on the roadmap; none are
+hidden.

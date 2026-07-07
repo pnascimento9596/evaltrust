@@ -32,6 +32,19 @@ def cohens_d_paired(differences: np.ndarray) -> float:
     return mean / sd
 
 
+def cohens_h(p1: float, p2: float) -> float:
+    """Cohen's h effect size between two proportions.
+
+    The right effect size for pass-rate / accuracy comparisons, where Cohen's d
+    (which assumes roughly continuous data) is not appropriate. Uses the
+    arcsine-square-root transform; the sign follows the argument order (positive
+    when ``p1 > p2``).
+    """
+    phi1 = 2.0 * np.arcsin(np.sqrt(p1))
+    phi2 = 2.0 * np.arcsin(np.sqrt(p2))
+    return float(phi1 - phi2)
+
+
 def magnitude_label(d: float) -> str:
     """Map an effect size to a plain-language magnitude (sign-agnostic).
 
