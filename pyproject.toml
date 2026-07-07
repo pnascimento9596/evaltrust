@@ -9,8 +9,22 @@ description = "An auditor for LLM evaluations — tells you whether you can trus
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "EvalLab" }]
-keywords = ["llm", "evaluation", "audit", "statistics", "benchmark"]
+authors = [{ name = "EvalLab contributors" }]
+keywords = ["llm", "evaluation", "audit", "statistics", "benchmark", "eval"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Quality Assurance",
+]
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.11",
@@ -22,6 +36,12 @@ dependencies = [
 # statsmodels is used only in the test suite, to validate EvalLab's statistics
 # against an independent reference implementation. It is not a runtime dependency.
 dev = ["pytest>=8.0", "statsmodels>=0.14"]
+
+[project.urls]
+Homepage = "https://github.com/quantkyled/evallab"
+Repository = "https://github.com/quantkyled/evallab"
+Issues = "https://github.com/quantkyled/evallab/issues"
+Changelog = "https://github.com/quantkyled/evallab/blob/main/CHANGELOG.md"
 
 [project.scripts]
 evallab = "evallab.cli:app"

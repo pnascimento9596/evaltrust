@@ -1,0 +1,88 @@
+# Design and philosophy
+
+## The problem
+
+Evaluating models costs real time and money, and the output is usually a pair of
+numbers:
+
+```
+Model A: 84.7
+Model B: 86.2
+```
+
+From which teams conclude: ship B. But that conclusion rests on assumptions the
+numbers don't show. The difference might not be statistically significant. The
+sample might be too small. A second judge might disagree. The benchmark might be
+saturated, so a gain near the ceiling means little. The improvement might vanish
+when the prompt wording changes.
+
+Most evaluation tools report *what* the score is. Very few tell you whether you
+should *believe* it.
+
+## The idea
+
+EvalLab is an **evaluation auditor**, not another eval framework, benchmark, or
+judge. The analogy is financial accounting: companies keep their own books, and
+audits exist because bookkeeping answers "what are the numbers?" while an audit
+answers "can you trust these numbers?" EvalLab plays the second role for
+evaluations.
+
+It runs *after* your existing eval tool rather than replacing it, which makes it
+easy to adopt: you keep your current workflow and add one command at the end.
+
+Every feature answers exactly one question:
+
+> Is the evidence from this evaluation strong enough to justify the decision I'm
+> about to make?
+
+## Pillars of trust
+
+A trustworthy evaluation is repeatable, statistically sound, robust, and
+consistent across evaluators, on a healthy benchmark. EvalLab's checks map onto
+these pillars. The first release audits four of them from the data already in your
+results file:
+
+- **Statistical Validity** — is the gap real, large enough to matter, and was the
+  sample big enough to detect it?
+- **Benchmark Health** — can the benchmark separate these models at all?
+- **Repeatability** — would a rerun reach the same conclusion?
+- **Judge Reliability** — would a different judge reach the same verdict?
+
+Two further pillars — robustness to perturbation, and reproducibility provenance —
+require generating new evidence (re-running the eval, calling additional judges)
+rather than analyzing an existing file, and are planned as opt-in features.
+
+## Principles
+
+**Sit after the eval, not in place of it.** EvalLab reads what your tool already
+produced. Adoption costs one command.
+
+**No arbitrary score.** The output is a plain-language verdict — High, Moderate,
+or Low Confidence — backed by specific findings. A single opaque number would just
+recreate the problem EvalLab exists to solve.
+
+**Every finding is actionable.** Each one answers three questions: why it matters,
+how we detected it, and how to fix it. A warning you can't act on is noise.
+
+**Missing evidence is a recommendation.** When a check needs data the file doesn't
+contain, EvalLab doesn't guess or crash — it explains how to generate that
+evidence. "Add repeated runs" is itself useful advice.
+
+**The auditor is held to its own standard.** Every statistical method is validated
+against an independent reference implementation, and all resampling is seeded, so
+the audit is reproducible. A tool that demands reproducibility has to be
+reproducible itself.
+
+## Scope of the first release
+
+Deliberately small and correct rather than broad and shaky:
+
+- Offline command-line tool, no API keys, no configuration.
+- Reads Promptfoo, nested JSON, record lists, and CSV; pairs two single-model
+  files for tools like DeepEval.
+- The four pillars above, computed from the results file.
+- Terminal report.
+
+Out of scope for now: HTML reports, a Python API, framework plugins, dashboards,
+and any feature that calls models or orchestrates new evaluation runs. Each is a
+later step with its own design.
