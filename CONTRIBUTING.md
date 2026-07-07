@@ -83,6 +83,11 @@ to generate the missing data rather than crashing when the data isn't there.
 - Make sure `pytest` is green.
 - Describe *what* changed and *why* in the PR description.
 
+## Releasing
+
+Maintainers: see [`RELEASING.md`](RELEASING.md). Releases publish to PyPI
+automatically via GitHub Releases and PyPI Trusted Publishing.
+
 ## Reporting bugs and requesting features
 
 Open an issue using the templates. For bugs, a minimal results file that
