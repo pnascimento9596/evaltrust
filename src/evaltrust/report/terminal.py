@@ -91,3 +91,45 @@ def render_report(report: AuditReport, width: int = 100) -> str:
 def print_report(report: AuditReport) -> None:
     """Print the report to the real terminal with colour."""
     Console().print(_renderable(report))
+
+
+_PLAIN_MARK = {
+    Status.PASS: "PASS",
+    Status.WARN: "WARN",
+    Status.FAIL: "FAIL",
+    Status.SKIP: "SKIP",
+}
+
+
+def render_plain(report: AuditReport) -> str:
+    """Render the report as plain ASCII text.
+
+    No colour, no Unicode, no box drawing — safe for Windows terminals, CI log
+    viewers, non-UTF-8 locales, and piping to a file.
+    """
+    v = report.verdict
+    lines = [
+        "EvalTrust Audit",
+        f"{report.model_a} vs {report.model_b}  "
+        f"({report.n_examples} examples, source: {report.source_format})",
+        "",
+        f"VERDICT: {v.level.value.upper()}",
+        v.summary,
+        "",
+        "Checks:",
+    ]
+    for f in report.findings:
+        lines.append(f"  [{_PLAIN_MARK[f.status]}] {f.title}  ({f.pillar})")
+
+    problems = [f for f in report.findings if f.status is not Status.PASS]
+    if problems:
+        lines += ["", "What to address:"]
+        for f in problems:
+            lines += [
+                f"  [{_PLAIN_MARK[f.status]}] {f.title}",
+                f"    Why: {f.why}",
+                f"    How: {f.how_detected}",
+                f"    Fix: {f.how_to_fix}",
+                "",
+            ]
+    return "\n".join(lines).rstrip() + "\n"

@@ -101,3 +101,27 @@ def test_explicit_model_selection(tmp_path):
         app, ["audit", write(tmp_path, "m.json", raw), "--model-a", "A", "--model-b", "C"])
     assert result.exit_code == 0
     assert "A vs C" in result.stdout or "C vs A" in result.stdout
+
+
+def test_json_output_is_valid_json(tmp_path):
+    import json as _json
+    result = runner.invoke(app, ["audit", clean_win_file(tmp_path), "--json"])
+    assert result.exit_code == 0
+    payload = _json.loads(result.stdout)
+    assert payload["verdict"]["level"] == "HIGH"
+    assert "findings" in payload
+    # No rich box characters in JSON mode.
+    assert "╭" not in result.stdout
+
+
+def test_json_output_still_respects_strict(tmp_path):
+    result = runner.invoke(app, ["audit", noise_file(tmp_path), "--json", "--strict"])
+    assert result.exit_code == 1
+
+
+def test_plain_output_is_ascii_only(tmp_path):
+    result = runner.invoke(app, ["audit", clean_win_file(tmp_path), "--plain"])
+    assert result.exit_code == 0
+    assert "[PASS]" in result.stdout
+    assert result.stdout.isascii()
+    assert "╭" not in result.stdout

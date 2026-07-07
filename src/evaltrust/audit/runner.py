@@ -23,6 +23,18 @@ class AuditReport:
     findings: list[Finding]
     verdict: Verdict
 
+    def to_dict(self) -> dict:
+        """A JSON-serializable representation of the whole audit."""
+        return {
+            "models": [self.model_a, self.model_b],
+            "model_a": self.model_a,
+            "model_b": self.model_b,
+            "n_examples": self.n_examples,
+            "source_format": self.source_format,
+            "verdict": self.verdict.to_dict(),
+            "findings": [f.to_dict() for f in self.findings],
+        }
+
 
 def _mean_score(data: EvalData, model: str) -> float:
     vals = [ex.scores[model] for ex in data.examples if model in ex.scores]

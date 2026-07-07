@@ -116,10 +116,42 @@ Useful flags:
 
 | Flag | Effect |
 |------|--------|
+| `--json` | Emit the full audit as JSON, for CI logic and experiment trackers. |
+| `--plain` | Plain ASCII output — safe for Windows terminals, CI logs, and piping to a file. |
 | `--strict` | Exit with a non-zero status on a Low-Confidence verdict (use it to gate CI). |
 | `--model-a`, `--model-b` | Choose which two models to compare, or label the two files. |
 | `--alpha` | Significance level (default `0.05`). |
 | `--seed` | Seed for the resampling (results are deterministic; change only to stress-test). |
+
+## Use it from Python
+
+The CLI is a thin wrapper over a small API, so you can audit inside a notebook,
+a training script, or a CI job:
+
+```python
+import evaltrust
+
+report = evaltrust.audit("results.json")           # path, two paths, or an EvalData
+print(report.verdict.level)                         # VerdictLevel.HIGH / MODERATE / LOW
+
+if report.verdict.level is evaltrust.VerdictLevel.LOW:
+    raise SystemExit("Evaluation isn't trustworthy enough to ship on.")
+
+report.to_dict()          # machine-readable, JSON-serializable — log it, store it, diff it
+```
+
+## Gate CI on it
+
+`--strict` returns a non-zero exit code on a Low-Confidence verdict, so an audit
+can block a merge the way failing tests do:
+
+```yaml
+# .github/workflows/eval.yml
+- name: Audit the evaluation
+  run: |
+    pip install evaltrust
+    evaltrust audit results.json --strict --plain
+```
 
 ## What it checks
 

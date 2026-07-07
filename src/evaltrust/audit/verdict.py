@@ -51,6 +51,14 @@ class Verdict:
     summary: str
     drivers: list[Finding]  # the findings that determined the level
 
+    def to_dict(self) -> dict:
+        return {
+            "level": self.level.name,
+            "label": self.level.value,
+            "summary": self.summary,
+            "drivers": [f.title for f in self.drivers],
+        }
+
 
 def compute_verdict(findings: list[Finding]) -> Verdict:
     active = [f for f in findings if f.status is not Status.SKIP]

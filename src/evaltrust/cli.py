@@ -11,6 +11,7 @@ process, so an audit can gate CI the way tests do.
 
 from __future__ import annotations
 
+import json
 from typing import List, Optional
 
 import typer
@@ -20,7 +21,7 @@ from .adapters.registry import UnknownFormatError
 from .audit.runner import run_audit
 from .audit.verdict import VerdictLevel
 from .core.ingest import load, load_comparison
-from .report.terminal import print_report
+from .report.terminal import print_report, render_plain
 
 app = typer.Typer(add_completion=False, help="Audit whether you can trust an LLM evaluation.")
 _err = Console(stderr=False)  # keep errors on stdout so they're easy to capture
@@ -43,6 +44,10 @@ def audit(
     seed: int = typer.Option(0, "--seed", help="Seed for reproducible resampling."),
     strict: bool = typer.Option(
         False, "--strict", help="Exit non-zero if confidence is Low."),
+    as_json: bool = typer.Option(
+        False, "--json", help="Emit the audit as JSON (for CI and tooling)."),
+    plain: bool = typer.Option(
+        False, "--plain", help="Plain ASCII output (no colour or Unicode)."),
 ) -> None:
     """Audit an evaluation and print a confidence verdict.
 
@@ -71,7 +76,12 @@ def audit(
         _err.print(f"[red]{e}[/red]")
         raise typer.Exit(code=2)
 
-    print_report(report)
+    if as_json:
+        typer.echo(json.dumps(report.to_dict(), indent=2))
+    elif plain:
+        typer.echo(render_plain(report), nl=False)
+    else:
+        print_report(report)
 
     if strict and report.verdict.level is VerdictLevel.LOW:
         raise typer.Exit(code=1)

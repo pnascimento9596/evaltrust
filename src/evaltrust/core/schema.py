@@ -96,3 +96,32 @@ class Finding:
     how_detected: str
     how_to_fix: str
     details: dict = field(default_factory=dict)
+
+    def to_dict(self) -> dict:
+        """A JSON-serializable representation for the API and ``--json`` output."""
+        return {
+            "pillar": self.pillar,
+            "title": self.title,
+            "status": self.status.name,
+            "why": self.why,
+            "how_detected": self.how_detected,
+            "how_to_fix": self.how_to_fix,
+            "details": _jsonable(self.details),
+        }
+
+
+def _jsonable(value):
+    """Best-effort conversion of numpy/other scalars into plain JSON types."""
+    if isinstance(value, dict):
+        return {k: _jsonable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(v) for v in value]
+    if isinstance(value, bool) or value is None or isinstance(value, (str, int, float)):
+        return value
+    item = getattr(value, "item", None)  # numpy scalar -> python scalar
+    if callable(item):
+        try:
+            return value.item()
+        except (ValueError, TypeError):
+            pass
+    return str(value)
