@@ -21,10 +21,10 @@ should *believe* it.
 
 ## The idea
 
-EvalLab is an **evaluation auditor**, not another eval framework, benchmark, or
+EvalTrust is an **evaluation auditor**, not another eval framework, benchmark, or
 judge. The analogy is financial accounting: companies keep their own books, and
 audits exist because bookkeeping answers "what are the numbers?" while an audit
-answers "can you trust these numbers?" EvalLab plays the second role for
+answers "can you trust these numbers?" EvalTrust plays the second role for
 evaluations.
 
 It runs *after* your existing eval tool rather than replacing it, which makes it
@@ -38,7 +38,7 @@ Every feature answers exactly one question:
 ## Pillars of trust
 
 A trustworthy evaluation is repeatable, statistically sound, robust, and
-consistent across evaluators, on a healthy benchmark. EvalLab's checks map onto
+consistent across evaluators, on a healthy benchmark. EvalTrust's checks map onto
 these pillars. The first release audits four of them from the data already in your
 results file:
 
@@ -54,18 +54,18 @@ rather than analyzing an existing file, and are planned as opt-in features.
 
 ## Principles
 
-**Sit after the eval, not in place of it.** EvalLab reads what your tool already
+**Sit after the eval, not in place of it.** EvalTrust reads what your tool already
 produced. Adoption costs one command.
 
 **No arbitrary score.** The output is a plain-language verdict — High, Moderate,
 or Low Confidence — backed by specific findings. A single opaque number would just
-recreate the problem EvalLab exists to solve.
+recreate the problem EvalTrust exists to solve.
 
 **Every finding is actionable.** Each one answers three questions: why it matters,
 how we detected it, and how to fix it. A warning you can't act on is noise.
 
 **Missing evidence is a recommendation.** When a check needs data the file doesn't
-contain, EvalLab doesn't guess or crash — it explains how to generate that
+contain, EvalTrust doesn't guess or crash — it explains how to generate that
 evidence. "Add repeated runs" is itself useful advice.
 
 **The auditor is held to its own standard.** Every statistical method is validated

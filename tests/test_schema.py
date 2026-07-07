@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from evallab.core.schema import EvalData, Example, Finding, Status
+from evaltrust.core.schema import EvalData, Example, Finding, Status
 
 
 def _data(**kw):

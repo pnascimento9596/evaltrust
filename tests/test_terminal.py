@@ -1,8 +1,8 @@
 """Tests for the terminal report rendering."""
 
-from evallab.audit.runner import run_audit
-from evallab.core.schema import EvalData, Example
-from evallab.report.terminal import render_report
+from evaltrust.audit.runner import run_audit
+from evaltrust.core.schema import EvalData, Example
+from evaltrust.report.terminal import render_report
 
 
 def make_data(scores_by_model, n):
@@ -17,7 +17,7 @@ def make_data(scores_by_model, n):
 def test_report_shows_header_and_models():
     report = run_audit(make_data({"A": [0] * 50, "B": [1] * 50}, 50))
     out = render_report(report)
-    assert "EvalLab" in out
+    assert "EvalTrust" in out
     assert "A" in out and "B" in out
 
 

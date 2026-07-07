@@ -1,7 +1,7 @@
 """Tests for the Judge Reliability audit (uses multi-judge data when present)."""
 
-from evallab.audit.judge_reliability import audit_judge_reliability
-from evallab.core.schema import EvalData, Example, Status
+from evaltrust.audit.judge_reliability import audit_judge_reliability
+from evaltrust.core.schema import EvalData, Example, Status
 
 
 def make_data(judge_examples):

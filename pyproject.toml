@@ -3,13 +3,13 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "evallab"
+name = "evaltrust"
 version = "0.1.0"
 description = "An auditor for LLM evaluations — tells you whether you can trust your eval results."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "EvalLab contributors" }]
+authors = [{ name = "EvalTrust contributors" }]
 keywords = ["llm", "evaluation", "audit", "statistics", "benchmark", "eval"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -33,21 +33,21 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# statsmodels is used only in the test suite, to validate EvalLab's statistics
+# statsmodels is used only in the test suite, to validate EvalTrust's statistics
 # against an independent reference implementation. It is not a runtime dependency.
 dev = ["pytest>=8.0", "statsmodels>=0.14"]
 
 [project.urls]
-Homepage = "https://github.com/quantkyled/evallab"
-Repository = "https://github.com/quantkyled/evallab"
-Issues = "https://github.com/quantkyled/evallab/issues"
-Changelog = "https://github.com/quantkyled/evallab/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/k-dickinson/evaltrust"
+Repository = "https://github.com/k-dickinson/evaltrust"
+Issues = "https://github.com/k-dickinson/evaltrust/issues"
+Changelog = "https://github.com/k-dickinson/evaltrust/blob/main/CHANGELOG.md"
 
 [project.scripts]
-evallab = "evallab.cli:app"
+evaltrust = "evaltrust.cli:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/evallab"]
+packages = ["src/evaltrust"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

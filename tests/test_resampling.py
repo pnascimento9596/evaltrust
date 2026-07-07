@@ -1,6 +1,6 @@
 """Tests for the resampling core: paired bootstrap CI and permutation test.
 
-These functions are the heart of EvalLab's statistical claims, so they are
+These functions are the heart of EvalTrust's statistical claims, so they are
 validated against known-correct analytic values AND cross-checked against
 scipy's own implementations.
 """
@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from scipy import stats as sp
 
-from evallab.stats.resampling import bootstrap_ci, permutation_test
+from evaltrust.stats.resampling import bootstrap_ci, permutation_test
 
 
 # ---------------------------------------------------------------------------

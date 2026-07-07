@@ -1,7 +1,7 @@
 """Pair two single-system evaluation files into one A-vs-B comparison.
 
 Single-system tools (DeepEval, LangSmith, OpenEvals) evaluate one model per run,
-so their exports contain a single model. Point EvalLab at two such files and it
+so their exports contain a single model. Point EvalTrust at two such files and it
 pairs them by example id into the canonical two-model shape the auditor expects.
 A file that already contains several models is audited directly instead — this
 path is only for the one-model-per-file case.

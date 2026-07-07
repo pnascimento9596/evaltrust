@@ -1,6 +1,6 @@
 # Architecture
 
-EvalLab turns an evaluation results file into a trust verdict through a short,
+EvalTrust turns an evaluation results file into a trust verdict through a short,
 one-directional pipeline:
 
 ```
@@ -43,7 +43,7 @@ your eval output
 | `stats/` | Pure statistical primitives. No knowledge of findings or formatting. |
 | `audit/` | The checks, the verdict rules, and the runner that orchestrates them. |
 | `report/terminal.py` | Render a report to the terminal with `rich`. |
-| `cli.py` | The `evallab audit` command. |
+| `cli.py` | The `evaltrust audit` command. |
 
 ## Design principles
 

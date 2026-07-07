@@ -38,7 +38,7 @@ def detect_adapter(raw) -> Adapter:
         if adapter.detect(raw):
             return adapter
     raise UnknownFormatError(
-        "Could not recognise this evaluation format. EvalLab looked for a "
+        "Could not recognise this evaluation format. EvalTrust looked for a "
         "promptfoo results object, a nested {\"examples\": [...]} structure, or "
         "a list of records with model/score fields. Provide per-example scores "
         "in one of those shapes, or a CSV."

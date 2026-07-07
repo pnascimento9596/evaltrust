@@ -83,7 +83,7 @@ class EvalData:
 
 @dataclass(frozen=True)
 class Finding:
-    """One audit result, structured around EvalLab's Golden Rule.
+    """One audit result, structured around EvalTrust's Golden Rule.
 
     Every finding must answer: why is this a problem, how did we detect it, and
     how do I fix it.

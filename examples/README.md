@@ -1,6 +1,6 @@
 # Example results files
 
-Sample inputs you can run EvalLab against to see each kind of verdict.
+Sample inputs you can run EvalTrust against to see each kind of verdict.
 
 | File | What it shows |
 |------|---------------|
@@ -11,7 +11,7 @@ Sample inputs you can run EvalLab against to see each kind of verdict.
 Try them:
 
 ```bash
-evallab audit examples/clean_win.json
-evallab audit examples/borderline.json
-evallab audit examples/deepeval_gpt4.json examples/deepeval_claude.json
+evaltrust audit examples/clean_win.json
+evaltrust audit examples/borderline.json
+evaltrust audit examples/deepeval_gpt4.json examples/deepeval_claude.json
 ```

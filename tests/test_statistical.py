@@ -1,9 +1,9 @@
-"""Tests for the Statistical Validity audit — EvalLab's flagship check."""
+"""Tests for the Statistical Validity audit — EvalTrust's flagship check."""
 
 import numpy as np
 
-from evallab.audit.statistical import audit_statistical_validity
-from evallab.core.schema import EvalData, Example, Status
+from evaltrust.audit.statistical import audit_statistical_validity
+from evaltrust.core.schema import EvalData, Example, Status
 
 
 def make_data(a_scores, b_scores):

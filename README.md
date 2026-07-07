@@ -1,4 +1,4 @@
-<h1 align="center">EvalLab</h1>
+<h1 align="center">EvalTrust</h1>
 
 <p align="center">
   <strong>An auditor for LLM evaluations.</strong><br>
@@ -16,7 +16,7 @@
 <p align="center">
   <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg">
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-blue.svg">
-  <img alt="CI" src="https://github.com/quantkyled/evallab/actions/workflows/ci.yml/badge.svg">
+  <img alt="CI" src="https://github.com/k-dickinson/evaltrust/actions/workflows/ci.yml/badge.svg">
 </p>
 
 ---
@@ -31,20 +31,20 @@ Model B: 86.2   ->  ship B
 That single comparison hides a dozen assumptions. Maybe the difference isn't
 statistically significant. Maybe the sample is too small. Maybe another judge
 disagrees, or the benchmark is already saturated. Most eval tools tell you *what*
-your score is. **EvalLab tells you whether you should believe it.**
+your score is. **EvalTrust tells you whether you should believe it.**
 
 It works like a financial audit: bookkeeping answers "what are the numbers?"; an
-audit answers "can you trust them?" EvalLab is the audit for evaluations. It runs
+audit answers "can you trust them?" EvalTrust is the audit for evaluations. It runs
 *after* your existing eval tool — it doesn't replace it.
 
 ## Example
 
 ```console
-$ evallab audit gpt4_run.json claude_run.json
+$ evaltrust audit gpt4_run.json claude_run.json
 ```
 
 ```
-EvalLab Audit
+EvalTrust Audit
 Comparing claude-3 vs gpt-4  · 150 examples · source: deepeval+deepeval
 ╭─ Verdict ────────────────────────────────────────────────────────────────────╮
 │ Low Confidence                                                               │
@@ -62,23 +62,23 @@ Comparing claude-3 vs gpt-4  · 150 examples · source: deepeval+deepeval
     How to fix       Do not claim a winner yet. Collect more examples first.
 ```
 
-Two runs at 71% and 74% — a three-point "win" that is actually noise. EvalLab
+Two runs at 71% and 74% — a three-point "win" that is actually noise. EvalTrust
 catches it before it becomes a shipping decision.
 
 ## Installation
 
-> **Note:** EvalLab is not yet published to PyPI. Once it is, installation will be
+> **Note:** EvalTrust is not yet published to PyPI. Once it is, installation will be
 > a single command:
 >
 > ```bash
-> pip install evallab
+> pip install evaltrust
 > ```
 
 Until then, install from source:
 
 ```bash
-git clone https://github.com/quantkyled/evallab
-cd evallab
+git clone https://github.com/k-dickinson/evaltrust
+cd evaltrust
 pip install -e .
 ```
 
@@ -88,14 +88,14 @@ pip install -e .
 
 1. Run your evaluation with whatever tool you already use (DeepEval, Promptfoo,
    LangSmith, OpenEvals, or a plain CSV).
-2. Point EvalLab at the output:
+2. Point EvalTrust at the output:
 
    ```bash
    # A file that already compares two or more models:
-   evallab audit results.json
+   evaltrust audit results.json
 
    # Two single-model runs (e.g. two DeepEval runs), paired by example id:
-   evallab audit gpt4_run.json claude_run.json
+   evaltrust audit gpt4_run.json claude_run.json
    ```
 
 3. Read the verdict. Fix what it flags. Re-run.
@@ -111,7 +111,7 @@ Useful flags:
 
 ## What it checks
 
-EvalLab audits four pillars of trust and ends in one plain-language verdict —
+EvalTrust audits four pillars of trust and ends in one plain-language verdict —
 **High**, **Moderate**, or **Low Confidence**. There is no arbitrary aggregate
 score.
 
@@ -131,7 +131,7 @@ one.
 
 ## Supported inputs
 
-You never write an EvalLab-specific format. It reads what your tool already
+You never write an EvalTrust-specific format. It reads what your tool already
 produced and auto-detects the shape:
 
 - **Promptfoo** results (several providers compared across test cases)
@@ -140,7 +140,7 @@ produced and auto-detects the shape:
 - **CSV** — long (`id,model,score`) or wide (`id,gpt,claude`)
 
 Single-model tools (DeepEval, LangSmith, OpenEvals) evaluate one model per run,
-so you pass two files and EvalLab pairs them. Details in
+so you pass two files and EvalTrust pairs them. Details in
 [`docs/input-formats.md`](docs/input-formats.md).
 
 ## How it works
@@ -158,7 +158,7 @@ resampling is seeded, so the auditor is itself reproducible. See
 ## Roadmap
 
 - **Now:** offline CLI, four pillars, terminal report.
-- **Next:** dedicated adapters for more tools, a Python API (`evallab.audit(...)`),
+- **Next:** dedicated adapters for more tools, a Python API (`evaltrust.audit(...)`),
   and an optional HTML report.
 - **Later:** opt-in orchestration for the pillars that need to generate evidence
   (robustness perturbations, extra judges) and a provenance/reproducibility check.

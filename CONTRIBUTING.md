@@ -1,18 +1,18 @@
-# Contributing to EvalLab
+# Contributing to EvalTrust
 
-Thanks for your interest in improving EvalLab. This project has one job — helping
+Thanks for your interest in improving EvalTrust. This project has one job — helping
 people tell trustworthy evaluations from untrustworthy ones — and contributions
 that sharpen that are very welcome. The two highest-value areas are **new format
-adapters** (so EvalLab reads more tools out of the box) and **new audit checks**
+adapters** (so EvalTrust reads more tools out of the box) and **new audit checks**
 (so it catches more ways an evaluation can mislead).
 
 ## Development setup
 
-EvalLab targets Python 3.10+.
+EvalTrust targets Python 3.10+.
 
 ```bash
-git clone https://github.com/quantkyled/evallab
-cd evallab
+git clone https://github.com/k-dickinson/evaltrust
+cd evaltrust
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 ```
@@ -29,7 +29,7 @@ change.
 ## How the codebase is organized
 
 ```
-src/evallab/
+src/evaltrust/
   cli.py            Command-line entry point
   core/             Canonical data model, file loading, two-file pairing
   adapters/         Format detection and mapping into the canonical model

@@ -8,7 +8,7 @@ adapter becomes a thin mapping onto it.
 import numpy as np
 import pytest
 
-from evallab.adapters.common import Record, coerce_score, records_to_evaldata
+from evaltrust.adapters.common import Record, coerce_score, records_to_evaldata
 
 
 # ---------------------------------------------------------------------------

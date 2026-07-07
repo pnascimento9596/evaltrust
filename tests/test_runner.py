@@ -1,8 +1,8 @@
 """Tests for the audit runner that wires every check together."""
 
-from evallab.audit.runner import run_audit
-from evallab.audit.verdict import VerdictLevel
-from evallab.core.schema import EvalData, Example
+from evaltrust.audit.runner import run_audit
+from evaltrust.audit.verdict import VerdictLevel
+from evaltrust.core.schema import EvalData, Example
 
 
 def make_data(scores_by_model, n):

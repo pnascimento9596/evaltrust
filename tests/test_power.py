@@ -7,7 +7,7 @@ a real effect this size, was my sample large enough to have detected it?"
 import pytest
 from statsmodels.stats.power import TTestPower
 
-from evallab.stats.power import achieved_power, required_n
+from evaltrust.stats.power import achieved_power, required_n
 
 _REF = TTestPower()
 

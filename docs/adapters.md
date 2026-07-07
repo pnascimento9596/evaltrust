@@ -94,4 +94,4 @@ adapter matches reality and not an assumption.
 
 If a tool evaluates one model per run, you don't need anything special: parse it
 into a single-model `EvalData`, and users compare two runs with
-`evallab audit runA.json runB.json`. See [input formats](input-formats.md).
+`evaltrust audit runA.json runB.json`. See [input formats](input-formats.md).

@@ -1,7 +1,7 @@
 """Tests for the overall confidence verdict."""
 
-from evallab.audit.verdict import VerdictLevel, compute_verdict
-from evallab.core.schema import Finding, Status
+from evaltrust.audit.verdict import VerdictLevel, compute_verdict
+from evaltrust.core.schema import Finding, Status
 
 
 def finding(status, title="f"):

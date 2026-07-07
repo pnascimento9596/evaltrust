@@ -7,9 +7,9 @@ structural fingerprint, never by file name.
 
 import pytest
 
-from evallab.adapters.generic import GenericRecordsAdapter, NativeNestedAdapter
-from evallab.adapters.promptfoo import PromptfooAdapter
-from evallab.adapters.registry import detect_adapter, UnknownFormatError
+from evaltrust.adapters.generic import GenericRecordsAdapter, NativeNestedAdapter
+from evaltrust.adapters.promptfoo import PromptfooAdapter
+from evaltrust.adapters.registry import detect_adapter, UnknownFormatError
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 """Load an evaluation file from disk and normalise it to canonical EvalData.
 
-The user runs ``evallab audit results.json`` (or ``.csv``) and never thinks about
+The user runs ``evaltrust audit results.json`` (or ``.csv``) and never thinks about
 formats. This module reads the file, routes JSON through structural auto-detection
 and CSV through the shared record extractor, and returns EvalData.
 """

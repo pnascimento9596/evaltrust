@@ -1,6 +1,6 @@
 """Promptfoo adapter.
 
-Promptfoo is the natural fit for EvalLab: it evaluates several *providers* across
+Promptfoo is the natural fit for EvalTrust: it evaluates several *providers* across
 the same test cases, which is exactly the A-vs-B comparison the auditor is built
 for. Each provider becomes a model; each test case becomes an example.
 """

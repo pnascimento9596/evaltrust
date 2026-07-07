@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from evallab.adapters.registry import UnknownFormatError
-from evallab.core.ingest import load
+from evaltrust.adapters.registry import UnknownFormatError
+from evaltrust.core.ingest import load
 
 
 def write(tmp_path, name, text):
@@ -65,7 +65,7 @@ def test_missing_file_raises(tmp_path):
 
 # --- two-file comparison (single-system tools) --------------------------------
 
-from evallab.core.ingest import load_comparison
+from evaltrust.core.ingest import load_comparison
 
 
 def single_model_file(tmp_path, name, model, rows):

@@ -1,11 +1,11 @@
 # Checks and methods
 
-EvalLab groups its checks into four pillars. Each check returns a finding with a
+EvalTrust groups its checks into four pillars. Each check returns a finding with a
 status — **PASS**, **WARN**, **FAIL**, or **SKIP** — and the reasoning behind it.
 This page documents the method and thresholds for each.
 
 All comparisons are **paired**: the same examples are scored by both models, so
-EvalLab works with per-example differences rather than comparing two noisy
+EvalTrust works with per-example differences rather than comparing two noisy
 averages.
 
 ## Statistical Validity
@@ -16,7 +16,7 @@ views, each a separate finding.
 ### Significance — paired permutation test
 
 Under the null hypothesis the two models are exchangeable on each example, so the
-sign of every per-example difference could equally have been flipped. EvalLab
+sign of every per-example difference could equally have been flipped. EvalTrust
 compares the observed mean against the distribution of means under random sign
 flips and reports a two-sided p-value (with the standard `(count + 1) / (N + 1)`
 correction, so it never reports exactly zero). This makes no normality assumption.
@@ -45,7 +45,7 @@ whether it is big enough to matter.
 
 ### Power / sample size
 
-Using the observed effect and an exact noncentral-*t* model, EvalLab computes the
+Using the observed effect and an exact noncentral-*t* model, EvalTrust computes the
 power the test had to detect that effect, and the number of examples needed for
 80% power.
 
@@ -79,7 +79,7 @@ explaining how to add it.*
 
 ### Rerun stability
 
-For each rerun, EvalLab computes the mean gap between the models and checks whether
+For each rerun, EvalTrust computes the mean gap between the models and checks whether
 the winner is consistent.
 
 - **PASS** when the winner never changes across reruns.

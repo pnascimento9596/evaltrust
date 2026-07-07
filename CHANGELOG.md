@@ -12,7 +12,7 @@ Initial release.
 
 ### Added
 
-- `evallab audit` command: reads an evaluation results file and prints a
+- `evaltrust audit` command: reads an evaluation results file and prints a
   High/Moderate/Low confidence verdict.
 - Four audit pillars:
   - **Statistical Validity** — paired permutation test, bootstrap confidence
@@ -29,5 +29,5 @@ Initial release.
 - `--strict` flag to fail CI on a Low-Confidence verdict.
 - Deterministic, seeded resampling so audits are reproducible.
 
-[Unreleased]: https://github.com/quantkyled/evallab/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/quantkyled/evallab/releases/tag/v0.1.0
+[Unreleased]: https://github.com/k-dickinson/evaltrust/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/k-dickinson/evaltrust/releases/tag/v0.1.0

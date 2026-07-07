@@ -1,6 +1,6 @@
 """Render an audit report to the terminal.
 
-Layout follows EvalLab's report philosophy: a plain-language verdict up top, a
+Layout follows EvalTrust's report philosophy: a plain-language verdict up top, a
 compact status list of every check, then — for anything that isn't a clean pass —
 the Golden Rule spelled out: why it matters, how we detected it, how to fix it.
 No arbitrary aggregate score anywhere.
@@ -38,7 +38,7 @@ def _renderable(report: AuditReport):
     style = _VERDICT_STYLE[verdict.level]
 
     header = Text.assemble(
-        ("EvalLab Audit\n", "bold"),
+        ("EvalTrust Audit\n", "bold"),
         (f"Comparing {report.model_a} vs {report.model_b}  ", "cyan"),
         (f"· {report.n_examples} examples · source: {report.source_format}", "dim"),
     )

@@ -30,7 +30,7 @@ def _skip(reason: str) -> Finding:
         how_detected=reason,
         how_to_fix=(
             "Evaluate each model 3-5 times (varying the judge/sampling seed) and "
-            "include the per-run scores so EvalLab can measure rerun stability."
+            "include the per-run scores so EvalTrust can measure rerun stability."
         ),
         details={"check": "repeatability", "assessed": False},
     )

@@ -1,8 +1,8 @@
-"""The `evallab` command-line interface.
+"""The `evaltrust` command-line interface.
 
 One command, no configuration:
 
-    evallab audit results.json
+    evaltrust audit results.json
 
 Reads your existing eval output, audits whether its conclusion is trustworthy,
 and prints the verdict. ``--strict`` makes a Low-Confidence verdict fail the
@@ -28,7 +28,7 @@ _err = Console(stderr=False)  # keep errors on stdout so they're easy to capture
 
 @app.callback()
 def main() -> None:
-    """EvalLab — an auditor for LLM evaluations."""
+    """EvalTrust — an auditor for LLM evaluations."""
 
 
 @app.command()

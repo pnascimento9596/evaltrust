@@ -1,7 +1,7 @@
 """Tests for the Repeatability audit (uses repeated-run data when present)."""
 
-from evallab.audit.repeatability import audit_repeatability
-from evallab.core.schema import EvalData, Example, Status
+from evaltrust.audit.repeatability import audit_repeatability
+from evaltrust.core.schema import EvalData, Example, Status
 
 
 def make_data(runs_a, runs_b, n=40):

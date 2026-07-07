@@ -1,7 +1,7 @@
 """Tests for the Benchmark Health audit."""
 
-from evallab.audit.benchmark_health import audit_benchmark_health
-from evallab.core.schema import EvalData, Example, Status
+from evaltrust.audit.benchmark_health import audit_benchmark_health
+from evaltrust.core.schema import EvalData, Example, Status
 
 
 def make_data(a_scores, b_scores):

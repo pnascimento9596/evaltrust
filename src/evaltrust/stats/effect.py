@@ -2,7 +2,7 @@
 
 A p-value tells you whether a difference is real; an effect size tells you
 whether it is *big enough to care about*. A tiny, perfectly-measured difference
-can be statistically significant yet practically meaningless — EvalLab reports
+can be statistically significant yet practically meaningless — EvalTrust reports
 both so nobody ships on significance alone.
 """
 

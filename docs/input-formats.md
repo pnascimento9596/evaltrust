@@ -1,12 +1,12 @@
 # Input formats
 
-You never write an EvalLab-specific format. Point the tool at whatever your eval
+You never write an EvalTrust-specific format. Point the tool at whatever your eval
 framework produced and it detects the shape by structure — not by file name — and
 maps it into one internal representation.
 
 ```bash
-evallab audit results.json
-evallab audit results.csv
+evaltrust audit results.json
+evaltrust audit results.csv
 ```
 
 ## Supported formats
@@ -14,7 +14,7 @@ evallab audit results.csv
 ### Promptfoo
 
 Promptfoo compares several providers across the same test cases, which is exactly
-the A-vs-B comparison EvalLab audits. Each provider becomes a model; each test
+the A-vs-B comparison EvalTrust audits. Each provider becomes a model; each test
 case becomes an example. Pass the exported results JSON directly.
 
 ### Nested JSON
@@ -83,16 +83,16 @@ Some tools — DeepEval, LangSmith, OpenEvals — evaluate one model per run, so
 single export contains only one model. Run each model, then pass both files:
 
 ```bash
-evallab audit gpt4_run.json claude_run.json
+evaltrust audit gpt4_run.json claude_run.json
 ```
 
-EvalLab pairs the two files by example id. Each file must contain exactly one
+EvalTrust pairs the two files by example id. Each file must contain exactly one
 model; a file that already has several models should be audited on its own. Model
 labels default to the models' own names, falling back to the file names if those
 collide, and can be overridden with `--model-a` and `--model-b`.
 
 ## When a format isn't recognized
 
-Detection fails loudly rather than guessing. If EvalLab can't recognize a file it
+Detection fails loudly rather than guessing. If EvalTrust can't recognize a file it
 tells you what it looked for, so you can reshape the data into one of the formats
 above — or, better, [contribute an adapter](adapters.md) for it.

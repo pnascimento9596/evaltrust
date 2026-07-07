@@ -1,14 +1,14 @@
 """Tests for pairing two single-system eval files into one A-vs-B comparison.
 
 Tools like DeepEval evaluate one system per run, so their exports carry a single
-model. To audit A vs B you point EvalLab at two such files and it pairs them by
+model. To audit A vs B you point EvalTrust at two such files and it pairs them by
 example id.
 """
 
 import pytest
 
-from evallab.core.pairing import merge_two, primary_model
-from evallab.core.schema import EvalData, Example
+from evaltrust.core.pairing import merge_two, primary_model
+from evaltrust.core.schema import EvalData, Example
 
 
 def single(model, rows, runs=None, judges=None, fmt="test"):

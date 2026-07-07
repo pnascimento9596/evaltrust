@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from statsmodels.stats.inter_rater import cohens_kappa, fleiss_kappa
 
-from evallab.stats.agreement import (
+from evaltrust.stats.agreement import (
     cohen_kappa,
     fleiss_kappa as our_fleiss,
     percent_agreement,

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from evallab.stats.effect import cohens_d_paired, magnitude_label
+from evaltrust.stats.effect import cohens_d_paired, magnitude_label
 
 
 def test_cohens_d_matches_hand_calculation():

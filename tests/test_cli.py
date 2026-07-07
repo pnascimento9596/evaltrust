@@ -1,10 +1,10 @@
-"""Tests for the `evallab audit` command."""
+"""Tests for the `evaltrust audit` command."""
 
 import json
 
 from typer.testing import CliRunner
 
-from evallab.cli import app
+from evaltrust.cli import app
 
 runner = CliRunner()
 
@@ -32,7 +32,7 @@ def noise_file(tmp_path):
 def test_audit_prints_report_and_exits_zero(tmp_path):
     result = runner.invoke(app, ["audit", clean_win_file(tmp_path)])
     assert result.exit_code == 0
-    assert "EvalLab Audit" in result.stdout
+    assert "EvalTrust Audit" in result.stdout
     assert "High Confidence" in result.stdout
 
 

@@ -32,7 +32,7 @@ def _mean_score(data: EvalData, model: str) -> float:
 def _pick_models(data: EvalData) -> tuple[str, str]:
     """Compare the two strongest models by mean score (stable, documented)."""
     if len(data.models) < 2:
-        raise ValueError("EvalLab needs at least two models to compare.")
+        raise ValueError("EvalTrust needs at least two models to compare.")
     ranked = sorted(data.models, key=lambda m: _mean_score(data, m), reverse=True)
     return ranked[0], ranked[1]
 

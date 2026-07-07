@@ -19,7 +19,7 @@ What you expected to happen instead.
 Steps to reproduce, ideally with the exact command you ran:
 
 ```bash
-evallab audit ...
+evaltrust audit ...
 ```
 
 A minimal results file that triggers the problem is the most helpful thing you
@@ -27,7 +27,7 @@ can include. Attach it or paste a trimmed-down version.
 
 **Environment**
 
-- EvalLab version:
+- EvalTrust version:
 - Python version:
 - OS:
 
