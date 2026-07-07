@@ -31,12 +31,16 @@ def audit_statistical_validity(
     n_resamples: int = 10_000,
     seed: int = 0,
 ) -> list[Finding]:
-    diffs = data.differences(model_a, model_b)
-    n = int(diffs.size)
+    raw = data.differences(model_a, model_b)  # score_b - score_a
+    n = int(raw.size)
 
-    mean_diff = float(diffs.mean())
-    leader, trailer = (model_b, model_a) if mean_diff >= 0 else (model_a, model_b)
-    gap = abs(mean_diff)
+    # Orient the differences toward the leader so every reported number reads
+    # positive in favour of the winner (the permutation test is sign-invariant).
+    if float(raw.mean()) >= 0:
+        leader, trailer, diffs = model_b, model_a, raw
+    else:
+        leader, trailer, diffs = model_a, model_b, -raw
+    gap = float(diffs.mean())
 
     p = permutation_test(diffs, n_resamples=n_resamples, seed=seed)
     lo, hi = bootstrap_ci(diffs, confidence=confidence,
