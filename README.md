@@ -23,10 +23,15 @@ No API keys. No config. No cloud. Point it at the output of your existing eval
 run and read the verdict.
 
 ```bash
-evallab audit results.json          # JSON or CSV
+evallab audit results.json          # a file that already compares 2+ models
+evallab audit gpt4.json claude.json # two single-model runs (e.g. two DeepEval runs)
 evallab audit results.csv --strict  # exit non-zero on Low Confidence (for CI)
 evallab audit run.json --model-a gpt-4 --model-b claude   # choose the pair
 ```
+
+Tools like Promptfoo compare several models in one run — audit that file directly.
+Tools like DeepEval evaluate one model per run — point EvalLab at **two** files and
+it pairs them by example id into an A-vs-B comparison.
 
 ## What it checks
 

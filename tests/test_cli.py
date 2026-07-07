@@ -65,6 +65,35 @@ def test_no_strict_still_exits_zero_on_low_confidence(tmp_path):
     assert "Low Confidence" in result.stdout
 
 
+def single_model_file(tmp_path, name, model, n, rate):
+    raw = {"models": [model], "examples": [
+        {"id": str(i), "scores": {model: 1 if i < int(n * rate) else 0}}
+        for i in range(n)]}
+    return write(tmp_path, name, raw)
+
+
+def test_two_file_comparison(tmp_path):
+    a = single_model_file(tmp_path, "gpt.json", "gpt", 200, 0.60)
+    b = single_model_file(tmp_path, "claude.json", "claude", 200, 0.90)
+    result = runner.invoke(app, ["audit", a, b])
+    assert result.exit_code == 0
+    assert "gpt" in result.stdout and "claude" in result.stdout
+
+
+def test_two_multi_model_files_error_helpfully(tmp_path):
+    raw = {"models": ["A", "B"], "examples": [{"id": "1", "scores": {"A": 1, "B": 0}}]}
+    f = write(tmp_path, "multi.json", raw)
+    result = runner.invoke(app, ["audit", f, f])
+    assert result.exit_code == 2
+    assert "one model per file" in result.stdout.lower()
+
+
+def test_three_files_rejected(tmp_path):
+    f = single_model_file(tmp_path, "x.json", "m", 10, 0.5)
+    result = runner.invoke(app, ["audit", f, f, f])
+    assert result.exit_code == 2
+
+
 def test_explicit_model_selection(tmp_path):
     raw = {"models": ["A", "B", "C"], "examples": [
         {"id": str(i), "scores": {"A": 0, "B": 1, "C": 0}} for i in range(30)]}

@@ -61,3 +61,42 @@ def test_unknown_json_raises_helpful_error(tmp_path):
 def test_missing_file_raises(tmp_path):
     with pytest.raises(FileNotFoundError):
         load(str(tmp_path / "does_not_exist.json"))
+
+
+# --- two-file comparison (single-system tools) --------------------------------
+
+from evallab.core.ingest import load_comparison
+
+
+def single_model_file(tmp_path, name, model, rows):
+    raw = {"models": [model],
+           "examples": [{"id": k, "scores": {model: v}} for k, v in rows.items()]}
+    return write(tmp_path, name, json.dumps(raw))
+
+
+def test_one_path_loads_normally(tmp_path):
+    raw = {"models": ["A", "B"], "examples": [{"id": "q1", "scores": {"A": 1, "B": 0}}]}
+    data = load_comparison([write(tmp_path, "r.json", json.dumps(raw))])
+    assert set(data.models) == {"A", "B"}
+
+
+def test_two_paths_pair_and_label_by_model_name(tmp_path):
+    a = single_model_file(tmp_path, "a.json", "gpt", {"q1": 1, "q2": 0})
+    b = single_model_file(tmp_path, "b.json", "claude", {"q1": 0, "q2": 1})
+    data = load_comparison([a, b])
+    assert data.models == ["gpt", "claude"]
+    assert data.n_examples == 2
+
+
+def test_two_paths_fall_back_to_filenames_when_models_collide(tmp_path):
+    a = single_model_file(tmp_path, "run_gpt.json", "model", {"q1": 1})
+    b = single_model_file(tmp_path, "run_claude.json", "model", {"q1": 0})
+    data = load_comparison([a, b])
+    assert data.models == ["run_gpt", "run_claude"]
+
+
+def test_explicit_labels_override(tmp_path):
+    a = single_model_file(tmp_path, "a.json", "model", {"q1": 1})
+    b = single_model_file(tmp_path, "b.json", "model", {"q1": 0})
+    data = load_comparison([a, b], label_a="old", label_b="new")
+    assert data.models == ["old", "new"]

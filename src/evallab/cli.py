@@ -11,13 +11,15 @@ process, so an audit can gate CI the way tests do.
 
 from __future__ import annotations
 
+from typing import List, Optional
+
 import typer
 from rich.console import Console
 
 from .adapters.registry import UnknownFormatError
 from .audit.runner import run_audit
 from .audit.verdict import VerdictLevel
-from .core.ingest import load
+from .core.ingest import load, load_comparison
 from .report.terminal import print_report
 
 app = typer.Typer(add_completion=False, help="Audit whether you can trust an LLM evaluation.")
@@ -31,27 +33,40 @@ def main() -> None:
 
 @app.command()
 def audit(
-    results: str = typer.Argument(..., help="Path to your eval results (JSON or CSV)."),
-    model_a: str = typer.Option(None, "--model-a", help="First model to compare."),
-    model_b: str = typer.Option(None, "--model-b", help="Second model to compare."),
+    results: List[str] = typer.Argument(
+        ..., help="One results file (JSON/CSV), or two single-model files to compare."),
+    model_a: Optional[str] = typer.Option(
+        None, "--model-a", help="Model to compare (or label for the first file)."),
+    model_b: Optional[str] = typer.Option(
+        None, "--model-b", help="Model to compare (or label for the second file)."),
     alpha: float = typer.Option(0.05, "--alpha", help="Significance level."),
     seed: int = typer.Option(0, "--seed", help="Seed for reproducible resampling."),
     strict: bool = typer.Option(
         False, "--strict", help="Exit non-zero if confidence is Low."),
 ) -> None:
-    """Audit an evaluation results file and print a confidence verdict."""
+    """Audit an evaluation and print a confidence verdict.
+
+    Pass one file that already contains multiple models, or two single-model
+    files (e.g. two DeepEval runs) to pair into an A-vs-B comparison.
+    """
+    if len(results) > 2:
+        _err.print("[red]Provide at most two files (one, or two to compare).[/red]")
+        raise typer.Exit(code=2)
+
     try:
-        data = load(results)
+        if len(results) == 2:
+            data = load_comparison(results, label_a=model_a, label_b=model_b)
+            report = run_audit(data, alpha=alpha, seed=seed)
+        else:
+            data = load(results[0])
+            report = run_audit(data, model_a=model_a, model_b=model_b,
+                               alpha=alpha, seed=seed)
     except FileNotFoundError as e:
         _err.print(f"[red]{e}[/red]")
         raise typer.Exit(code=2)
     except UnknownFormatError as e:
         _err.print(f"[red]Unrecognised evaluation format.[/red]\n{e}")
         raise typer.Exit(code=2)
-
-    try:
-        report = run_audit(data, model_a=model_a, model_b=model_b,
-                           alpha=alpha, seed=seed)
     except ValueError as e:
         _err.print(f"[red]{e}[/red]")
         raise typer.Exit(code=2)
