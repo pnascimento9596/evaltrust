@@ -6,17 +6,21 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Changed
-
-- Redesigned the report to be scannable at a glance: verdict and one line, checks
-  grouped by pillar, a short "What to do" list, and optional "To check more". The
-  full reasoning for each flag now lives behind a new `--explain` flag.
-- Tightened all finding text to be terse and plain; `--plain` output is now
-  guaranteed ASCII.
+## [0.3.0] — 2026-07-07
 
 ### Added
 
 - `--explain` flag to show why each flag matters and how it was measured.
+
+### Changed
+
+- Redesigned the report to be scannable at a glance: verdict and one line, checks
+  grouped by pillar, a short "What to do" list, and optional "To check more". The
+  full reasoning for each flag now lives behind `--explain`.
+- Tightened all finding text to be terse and plain; `--plain` output is now
+  guaranteed ASCII.
+- Rewrote the README and docs to explain, plainly, what the tool does and why its
+  numbers are trustworthy.
 
 ## [0.2.0] — 2026-07-07
 
@@ -69,6 +73,7 @@ Initial release.
 - `--strict` flag to fail CI on a Low-Confidence verdict.
 - Deterministic, seeded resampling so audits are reproducible.
 
-[Unreleased]: https://github.com/k-dickinson/evaltrust/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/k-dickinson/evaltrust/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/k-dickinson/evaltrust/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/k-dickinson/evaltrust/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/k-dickinson/evaltrust/releases/tag/v0.1.0
