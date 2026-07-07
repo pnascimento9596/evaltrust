@@ -7,6 +7,7 @@ structural fingerprint, never by file name.
 
 import pytest
 
+from evaltrust.adapters.deepeval import DeepEvalAdapter
 from evaltrust.adapters.generic import GenericRecordsAdapter, NativeNestedAdapter
 from evaltrust.adapters.promptfoo import PromptfooAdapter
 from evaltrust.adapters.registry import detect_adapter, UnknownFormatError
@@ -113,6 +114,48 @@ def test_promptfoo_falls_back_to_success_when_no_score():
 
 
 # ---------------------------------------------------------------------------
+# DeepEval (single model per run — paired via two files)
+# ---------------------------------------------------------------------------
+
+DEEPEVAL_SNAKE = {
+    "test_results": [
+        {"name": "t0", "success": True,
+         "metrics_data": [{"name": "Correctness", "score": 0.9, "success": True}]},
+        {"name": "t1", "success": False,
+         "metrics_data": [{"name": "Correctness", "score": 0.3, "success": False}]},
+    ],
+}
+
+DEEPEVAL_CAMEL = {
+    "testCases": [
+        {"name": "t0", "success": True, "metricsData": [{"name": "M", "score": 1.0}]},
+        {"name": "t1", "success": True, "metricsData": [{"name": "M", "score": 0.8}]},
+    ],
+    "hyperparameters": {"model": "gpt-4"},
+}
+
+
+def test_deepeval_snake_case_detects_and_parses_pass_fail():
+    a = DeepEvalAdapter()
+    assert a.detect(DEEPEVAL_SNAKE)
+    data = a.parse(DEEPEVAL_SNAKE)
+    assert data.n_examples == 2
+    # One model; scores come from per-case success.
+    (model,) = data.models
+    assert data.examples[0].scores[model] == 1.0
+    assert data.examples[1].scores[model] == 0.0
+
+
+def test_deepeval_uses_hyperparameter_model_name_when_present():
+    data = DeepEvalAdapter().parse(DEEPEVAL_CAMEL)
+    assert data.models == ["gpt-4"]
+
+
+def test_deepeval_does_not_grab_promptfoo():
+    assert not DeepEvalAdapter().detect(PROMPTFOO)
+
+
+# ---------------------------------------------------------------------------
 # Auto-detection routing
 # ---------------------------------------------------------------------------
 
@@ -126,6 +169,10 @@ def test_detect_routes_native_nested():
 
 def test_detect_routes_generic_records():
     assert detect_adapter(LONG).source_format == "generic"
+
+
+def test_detect_routes_deepeval():
+    assert detect_adapter(DEEPEVAL_SNAKE).source_format == "deepeval"
 
 
 def test_detect_raises_helpful_error_on_unknown_shape():

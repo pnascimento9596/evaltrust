@@ -89,8 +89,8 @@ pytest
 
 ## Quick start
 
-1. Run your evaluation with whatever tool you already use (DeepEval, Promptfoo,
-   LangSmith, OpenEvals, or a plain CSV) and save the output.
+1. Run your evaluation with whatever tool you already use (Promptfoo, DeepEval, or
+   anything that can export scores to CSV/JSON) and save the output.
 2. Point EvalTrust at it:
 
    ```bash
@@ -176,16 +176,18 @@ one.
 ## Supported inputs
 
 You never write an EvalTrust-specific format. It reads what your tool already
-produced and auto-detects the shape:
+produced and auto-detects the shape. First-class adapters today:
 
 - **Promptfoo** results (several providers compared across test cases)
+- **DeepEval** test-results export (one model per run — pass two files to compare)
 - **Nested JSON** — `{"models": [...], "examples": [{"id", "scores": {...}}]}`
 - **Record lists** — JSON like `[{"id", "model", "score"}, ...]`
 - **CSV** — long (`id,model,score`) or wide (`id,gpt,claude`)
 
-Single-model tools (DeepEval, LangSmith, OpenEvals) evaluate one model per run,
-so you pass two files and EvalTrust pairs them. Details in
-[`docs/input-formats.md`](docs/input-formats.md).
+Tools without a dedicated adapter yet (LangSmith, OpenEvals, and others) work by
+exporting to CSV or a record list — usually a one-liner. More native adapters are
+a top roadmap item; [contributing one](docs/adapters.md) is straightforward.
+Details and single-model pairing in [`docs/input-formats.md`](docs/input-formats.md).
 
 ## How it works
 

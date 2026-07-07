@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from ..core.schema import EvalData
+from .deepeval import DeepEvalAdapter
 from .generic import GenericRecordsAdapter, NativeNestedAdapter
 from .promptfoo import PromptfooAdapter
 
@@ -28,6 +29,7 @@ class UnknownFormatError(ValueError):
 # Order matters: specific formats before generic fallbacks.
 REGISTRY: list[Adapter] = [
     PromptfooAdapter(),
+    DeepEvalAdapter(),
     NativeNestedAdapter(),
     GenericRecordsAdapter(),
 ]
@@ -38,8 +40,8 @@ def detect_adapter(raw) -> Adapter:
         if adapter.detect(raw):
             return adapter
     raise UnknownFormatError(
-        "Could not recognise this evaluation format. EvalTrust looked for a "
-        "promptfoo results object, a nested {\"examples\": [...]} structure, or "
-        "a list of records with model/score fields. Provide per-example scores "
-        "in one of those shapes, or a CSV."
+        "Could not recognise this evaluation format. EvalTrust looked for "
+        "promptfoo results, a DeepEval test-results export, a nested "
+        "{\"examples\": [...]} structure, or a list of records with model/score "
+        "fields. Provide per-example scores in one of those shapes, or a CSV."
     )

@@ -17,6 +17,22 @@ Promptfoo compares several providers across the same test cases, which is exactl
 the A-vs-B comparison EvalTrust audits. Each provider becomes a model; each test
 case becomes an example. Pass the exported results JSON directly.
 
+### DeepEval
+
+DeepEval evaluates one model per run, so its export contains a single model.
+EvalTrust reads the evaluation-results export (from `evaluate(...)` or
+`deepeval test run`), tolerating both the `test_results`/`metrics_data` and
+`testCases`/`metricsData` shapes. Each test case's score is its `success`
+(pass/fail), falling back to the mean of its metric scores. To compare two models,
+run each and pass both files:
+
+```bash
+evaltrust audit deepeval_gpt4.json deepeval_claude.json
+```
+
+If DeepEval recorded a model name under `hyperparameters`, it's used as the label;
+otherwise the file name supplies it.
+
 ### Nested JSON
 
 A structured object with a list of examples, each carrying per-model scores:
