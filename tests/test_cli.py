@@ -1,12 +1,19 @@
 """Tests for the `evaltrust audit` command."""
 
 import json
+from importlib.metadata import version as package_version
 
 from typer.testing import CliRunner
 
 from evaltrust.cli import app
 
 runner = CliRunner()
+
+
+def test_version_flag_prints_installed_version():
+    result = runner.invoke(app, ["--version"])
+    assert result.exit_code == 0
+    assert result.stdout.strip() == package_version("evaltrust")
 
 
 def write(tmp_path, name, obj):
