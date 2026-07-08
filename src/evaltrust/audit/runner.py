@@ -9,6 +9,7 @@ import numpy as np
 from ..config import AuditConfig
 from ..core.schema import EvalData, Finding, Status
 from .benchmark_health import audit_benchmark_health
+from .judge_calibration import audit_judge_calibration
 from .judge_reliability import audit_judge_reliability
 from .repeatability import audit_repeatability
 from .statistical import audit_statistical_validity
@@ -100,6 +101,11 @@ def run_audit(
     if model_a is None or model_b is None:
         model_a, model_b = _pick_models(data)
 
+    if data.differences(model_a, model_b).size == 0:
+        raise ValueError(
+            f"No examples have scores for both '{model_a}' and '{model_b}', so "
+            "there's nothing to compare. Check the models and score columns.")
+
     findings: list[Finding] = []
     dq = _data_quality(data)
     if dq is not None:
@@ -116,6 +122,10 @@ def run_audit(
     findings += audit_judge_reliability(
         data, model_a, model_b,
         agreement_threshold=cfg.judge_agreement_threshold)
+    findings += audit_judge_calibration(
+        data, model_a, model_b,
+        threshold=cfg.judge_agreement_threshold,
+        reference_judge=cfg.reference_judge)
 
     return AuditReport(
         model_a=model_a,

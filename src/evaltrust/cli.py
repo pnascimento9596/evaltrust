@@ -62,6 +62,9 @@ def audit(
         None, "--seed", help="Seed for reproducible resampling."),
     config_path: Optional[str] = typer.Option(
         None, "--config", help="Path to a config TOML (default: .evaltrust.toml or pyproject)."),
+    reference_judge: Optional[str] = typer.Option(
+        None, "--reference-judge",
+        help="Name of the human/gold judge to calibrate the AI judges against."),
     strict: bool = typer.Option(
         False, "--strict", help="Exit non-zero if confidence is Low."),
     fail_under: Optional[str] = typer.Option(
@@ -92,7 +95,9 @@ def audit(
         raise typer.Exit(code=2)
     overrides = {k: v for k, v in (("alpha", alpha),
                                    ("equivalence_margin", equivalence_margin),
-                                   ("seed", seed)) if v is not None}
+                                   ("seed", seed),
+                                   ("reference_judge", reference_judge))
+                 if v is not None}
     cfg = replace(cfg, **overrides)
 
     suite_report = None

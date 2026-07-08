@@ -65,3 +65,14 @@ def test_non_binary_rubric_scores_audit_without_crashing(tmp_path):
     report = run_audit(data)
     assert report.verdict.level in (VerdictLevel.HIGH, VerdictLevel.MODERATE,
                                     VerdictLevel.LOW)
+
+
+def test_model_with_no_comparable_scores_errors_cleanly(tmp_path):
+    import pytest
+    from evaltrust.audit.runner import run_audit
+    # B is declared but has no per-example scores.
+    data = load(write(tmp_path, "one.json",
+                      '{"models":["A","B"],"examples":['
+                      '{"id":"q1","scores":{"A":1}},{"id":"q2","scores":{"A":0}}]}'))
+    with pytest.raises(ValueError):
+        run_audit(data, model_a="A", model_b="B")

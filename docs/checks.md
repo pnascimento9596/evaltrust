@@ -117,6 +117,17 @@ categorical, and the identity of the judge that agrees least with the rest.
 - **PASS** when mean agreement is at least 80%.
 - **WARN** otherwise, naming the likely outlier judge.
 
+### Judge calibration (vs. a human/gold judge)
+
+If the file includes a human or gold judge — treated as ground truth — EvalTrust
+measures how often each AI judge agrees with it. A judge that matches humans only
+70% of the time can't be trusted to rank models on its own. Include your human
+labels as a judge named `gold`/`human`/`reference` (etc.), or name the reference
+with `--reference-judge`.
+
+- **PASS** when every AI judge agrees with the reference above the threshold.
+- **WARN** otherwise, naming the worst-calibrated judge and its agreement rate.
+
 ## Multiple metrics (suites)
 
 If your file scores several metrics per example (a `metric` column, see
