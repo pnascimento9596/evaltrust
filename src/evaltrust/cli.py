@@ -26,6 +26,7 @@ from .audit.verdict import _LEVEL_RANK, VerdictLevel, coerce_level
 from .config import AuditConfig
 from .core.ingest import load_comparison, load_suite
 from .diff import compare
+from .report.html import render_html
 from .report.terminal import (
     print_diff,
     print_report,
@@ -78,6 +79,8 @@ def audit(
         help="Exit non-zero if confidence is below this level (high/moderate/low)."),
     as_json: bool = typer.Option(
         False, "--json", help="Emit the audit as JSON (for CI and tooling)."),
+    html_out: Optional[str] = typer.Option(
+        None, "--html", help="Write the audit as a standalone HTML file to this path."),
     plain: bool = typer.Option(
         False, "--plain", help="Plain ASCII output (no colour or Unicode)."),
     explain: bool = typer.Option(
@@ -147,6 +150,12 @@ def audit(
         else:
             print_report(report, explain=explain)
         level = report.verdict.level
+    if html_out is not None:
+        if suite_report is not None:
+            _err.print("[yellow]--html is not yet supported for multi-metric suites; "
+                       "run a single metric to get an HTML report.[/yellow]")
+        elif report is not None:
+            Path(html_out).write_text(render_html(report, explain=explain), encoding="utf-8")
 
     threshold = fail_under if fail_under is not None else ("moderate" if strict else None)
     if threshold is not None:
