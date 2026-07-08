@@ -1,1 +1,8 @@
 blank_issues_enabled: true
+contact_links:
+  - name: 📖 Contributing guidelines
+    url: https://github.com/k-dickinson/evaltrust/blob/main/CONTRIBUTING.md
+    about: Read this first — how to set up, add a format adapter or check, and open a pull request.
+  - name: 📚 Documentation
+    url: https://github.com/k-dickinson/evaltrust/tree/main/docs
+    about: Design, architecture, the checks and their methods, input formats, and configuration.
