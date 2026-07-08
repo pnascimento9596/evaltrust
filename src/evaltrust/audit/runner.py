@@ -11,7 +11,7 @@ from .benchmark_health import audit_benchmark_health
 from .judge_reliability import audit_judge_reliability
 from .repeatability import audit_repeatability
 from .statistical import audit_statistical_validity
-from .verdict import Verdict, compute_verdict
+from .verdict import Verdict, VerdictLevel, compute_verdict, enforce_level
 
 
 @dataclass(frozen=True)
@@ -23,6 +23,17 @@ class AuditReport:
     findings: list[Finding]
     verdict: Verdict
     models_available: list[str] = field(default_factory=list)
+
+    def raise_if_below(self, minimum: "str | VerdictLevel" = "moderate") -> "AuditReport":
+        """Raise UntrustworthyError if confidence is below ``minimum``.
+
+        Drop this into a script or test to fail when the evaluation isn't
+        trustworthy enough:  ``evaltrust.audit(results).raise_if_below("moderate")``.
+        Returns self on success so it can be chained.
+        """
+        enforce_level(self.verdict.level, minimum,
+                      context=f"{self.model_a} vs {self.model_b}")
+        return self
 
     def to_dict(self) -> dict:
         """A JSON-serializable representation of the whole audit."""

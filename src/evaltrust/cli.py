@@ -20,7 +20,7 @@ from rich.console import Console
 from .adapters.registry import UnknownFormatError
 from .audit.runner import run_audit
 from .audit.suite import audit_suite
-from .audit.verdict import VerdictLevel
+from .audit.verdict import _LEVEL_RANK, VerdictLevel, coerce_level
 from .core.ingest import load_comparison, load_suite
 from .report.terminal import (
     print_report,
@@ -57,6 +57,9 @@ def audit(
     seed: int = typer.Option(0, "--seed", help="Seed for reproducible resampling."),
     strict: bool = typer.Option(
         False, "--strict", help="Exit non-zero if confidence is Low."),
+    fail_under: Optional[str] = typer.Option(
+        None, "--fail-under",
+        help="Exit non-zero if confidence is below this level (high/moderate/low)."),
     as_json: bool = typer.Option(
         False, "--json", help="Emit the audit as JSON (for CI and tooling)."),
     plain: bool = typer.Option(
@@ -118,8 +121,15 @@ def audit(
             print_report(report, explain=explain)
         level = report.verdict.level
 
-    if strict and level is VerdictLevel.LOW:
-        raise typer.Exit(code=1)
+    threshold = fail_under if fail_under is not None else ("moderate" if strict else None)
+    if threshold is not None:
+        try:
+            minimum = coerce_level(threshold)
+        except ValueError as e:
+            _err.print(f"[red]{e}[/red]")
+            raise typer.Exit(code=2)
+        if _LEVEL_RANK[level] < _LEVEL_RANK[minimum]:
+            raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":

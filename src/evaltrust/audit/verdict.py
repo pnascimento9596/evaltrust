@@ -24,6 +24,38 @@ class VerdictLevel(Enum):
     LOW = "Low Confidence"
 
 
+_LEVEL_RANK = {VerdictLevel.LOW: 0, VerdictLevel.MODERATE: 1, VerdictLevel.HIGH: 2}
+
+
+class UntrustworthyError(AssertionError):
+    """Raised by ``raise_if_below`` when confidence is under the required level.
+
+    Subclasses AssertionError so it reads as a clean failure in test frameworks.
+    """
+
+
+def coerce_level(level: "str | VerdictLevel") -> VerdictLevel:
+    if isinstance(level, VerdictLevel):
+        return level
+    try:
+        return VerdictLevel[str(level).strip().upper()]
+    except KeyError:
+        raise ValueError(
+            f"Unknown confidence level {level!r}; use 'high', 'moderate', or 'low'."
+        )
+
+
+def enforce_level(actual: VerdictLevel, minimum, context: str = "") -> None:
+    """Raise UntrustworthyError if ``actual`` is below ``minimum``."""
+    minimum = coerce_level(minimum)
+    if _LEVEL_RANK[actual] < _LEVEL_RANK[minimum]:
+        where = f" for {context}" if context else ""
+        raise UntrustworthyError(
+            f"Evaluation is {actual.value}{where}, below the required "
+            f"{minimum.value}."
+        )
+
+
 _SUMMARY = {
     VerdictLevel.HIGH: "The result holds up. You can act on it.",
     VerdictLevel.MODERATE: "Probably real, but check the flags below first.",

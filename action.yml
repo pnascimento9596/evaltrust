@@ -1,0 +1,31 @@
+name: EvalTrust Audit
+description: Audit an evaluation results file and fail the job if it isn't trustworthy.
+branding:
+  icon: check-circle
+  color: blue
+
+inputs:
+  results:
+    description: Path to the eval results file (JSON or CSV), or two space-separated files.
+    required: true
+  min-confidence:
+    description: Fail the job if confidence is below this level (high, moderate, or low).
+    required: false
+    default: moderate
+  version:
+    description: EvalTrust version specifier to install (e.g. "==0.4.0").
+    required: false
+    default: ""
+  args:
+    description: Extra arguments passed to `evaltrust audit`.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        python -m pip install --quiet "evaltrust${{ inputs.version }}"
+        evaltrust audit ${{ inputs.results }} --plain \
+          --fail-under "${{ inputs.min-confidence }}" ${{ inputs.args }}

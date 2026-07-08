@@ -15,7 +15,7 @@ Use the CLI (``evaltrust audit``) or this Python API:
 from .api import audit, audit_suite
 from .audit.runner import AuditReport, run_audit
 from .audit.suite import SuiteReport
-from .audit.verdict import Verdict, VerdictLevel
+from .audit.verdict import UntrustworthyError, Verdict, VerdictLevel
 from .core.schema import EvalData, Example, Finding, Status
 
 __all__ = [
@@ -24,6 +24,7 @@ __all__ = [
     "run_audit",
     "AuditReport",
     "SuiteReport",
+    "UntrustworthyError",
     "Verdict",
     "VerdictLevel",
     "EvalData",

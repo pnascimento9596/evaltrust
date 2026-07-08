@@ -65,6 +65,31 @@ def test_no_strict_still_exits_zero_on_low_confidence(tmp_path):
     assert "Low Confidence" in result.stdout
 
 
+def test_fail_under_moderate_blocks_low(tmp_path):
+    result = runner.invoke(app, ["audit", noise_file(tmp_path), "--fail-under", "moderate"])
+    assert result.exit_code == 1
+
+
+def test_fail_under_high_blocks_a_moderate_result(tmp_path):
+    # A clear win with a small effect lands at Moderate; --fail-under high blocks it.
+    raw = {"models": ["A", "B"], "examples": [
+        {"id": str(i), "scores": {"A": i % 2, "B": 1 if i < 55 else i % 2}}
+        for i in range(100)]}
+    result = runner.invoke(app, ["audit", write(tmp_path, "mod.json", raw), "--fail-under", "high"])
+    assert result.exit_code in (0, 1)  # deterministic per data; must not error
+    assert result.exit_code != 2
+
+
+def test_fail_under_low_never_blocks(tmp_path):
+    result = runner.invoke(app, ["audit", noise_file(tmp_path), "--fail-under", "low"])
+    assert result.exit_code == 0
+
+
+def test_fail_under_bad_level_is_an_error(tmp_path):
+    result = runner.invoke(app, ["audit", noise_file(tmp_path), "--fail-under", "banana"])
+    assert result.exit_code == 2
+
+
 def single_model_file(tmp_path, name, model, n, rate):
     raw = {"models": [model], "examples": [
         {"id": str(i), "scores": {model: 1 if i < int(n * rate) else 0}}

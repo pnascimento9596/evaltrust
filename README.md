@@ -148,40 +148,53 @@ Useful flags:
 |------|--------|
 | `--json` | Emit the full audit as JSON, for CI logic and experiment trackers. |
 | `--plain` | Plain ASCII output — safe for Windows terminals, CI logs, and piping to a file. |
-| `--strict` | Exit with a non-zero status on a Low-Confidence verdict (use it to gate CI). |
+| `--fail-under` | Exit non-zero if confidence is below a level (`high`/`moderate`/`low`) — gate CI. |
+| `--explain` | Show why each flag matters and the numbers behind it. |
 | `--model-a`, `--model-b` | Choose which two models to compare, or label the two files. |
 | `--alpha` | Significance level (default `0.05`). |
 | `--seed` | Seed for the resampling (results are deterministic; change only to stress-test). |
 
-## Use it from Python
+## Use it standalone, or embed it in your eval
 
-The CLI is a thin wrapper over a small API, so you can audit inside a notebook,
-a training script, or a CI job:
+Run the CLI by hand, **or** drop the audit into your own eval/test code and fail
+when the result isn't trustworthy — one line does it:
 
 ```python
 import evaltrust
 
-report = evaltrust.audit("results.json")           # path, two paths, or an EvalData
-print(report.verdict.level)                         # VerdictLevel.HIGH / MODERATE / LOW
+report = evaltrust.audit("results.json")      # path, two paths, or an EvalData
+report.raise_if_below("moderate")             # raises UntrustworthyError if too low
 
-if report.verdict.level is evaltrust.VerdictLevel.LOW:
-    raise SystemExit("Evaluation isn't trustworthy enough to ship on.")
+report.to_dict()          # machine-readable JSON — log it, store it, diff it
+```
 
-report.to_dict()          # machine-readable, JSON-serializable — log it, store it, diff it
+In pytest, that makes "is my eval trustworthy?" a normal test:
+
+```python
+def test_new_prompt_is_a_real_improvement():
+    evaltrust.audit(["old_prompt.json", "new_prompt.json"]).raise_if_below("moderate")
 ```
 
 ## Gate CI on it
 
-`--strict` returns a non-zero exit code on a Low-Confidence verdict, so an audit
-can block a merge the way failing tests do:
+Use the bundled GitHub Action:
 
 ```yaml
 # .github/workflows/eval.yml
-- name: Audit the evaluation
-  run: |
-    pip install evaltrust
-    evaltrust audit results.json --strict --plain
+- uses: k-dickinson/evaltrust@v1
+  with:
+    results: results.json
+    min-confidence: moderate     # fail the job below this level
 ```
+
+...or just call the CLI with `--fail-under` (`high`, `moderate`, or `low`):
+
+```bash
+pip install evaltrust
+evaltrust audit results.json --plain --fail-under moderate
+```
+
+More patterns in [`docs/integrations.md`](docs/integrations.md).
 
 ## What it checks
 

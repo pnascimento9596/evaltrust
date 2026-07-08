@@ -19,7 +19,7 @@ import numpy as np
 
 from ..core.schema import EvalData
 from .runner import AuditReport, run_audit
-from .verdict import VerdictLevel
+from .verdict import VerdictLevel, enforce_level
 
 # Worst-to-best ordering for rolling metric verdicts up into one.
 _RANK = {VerdictLevel.LOW: 0, VerdictLevel.MODERATE: 1, VerdictLevel.HIGH: 2}
@@ -38,6 +38,12 @@ class SuiteReport:
         its weakest metric."""
         return min((r.verdict.level for r in self.reports.values()),
                    key=lambda lvl: _RANK[lvl])
+
+    def raise_if_below(self, minimum: "str | VerdictLevel" = "moderate") -> "SuiteReport":
+        """Raise UntrustworthyError if the suite's overall (weakest) confidence is
+        below ``minimum``. Returns self so it can be chained."""
+        enforce_level(self.overall_level, minimum, context="the metric suite")
+        return self
 
     def to_dict(self) -> dict:
         return {
