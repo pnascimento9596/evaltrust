@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from ..core.schema import EvalData, Finding
+from ..core.schema import EvalData, Finding, Status
 from .benchmark_health import audit_benchmark_health
 from .judge_reliability import audit_judge_reliability
 from .repeatability import audit_repeatability
@@ -43,6 +43,26 @@ def _mean_score(data: EvalData, model: str) -> float:
     return float(np.mean(vals)) if vals else float("-inf")
 
 
+def _data_quality(data: EvalData) -> Finding | None:
+    """Flag rows dropped during loading for missing or unreadable scores."""
+    skipped = int(data.metadata.get("skipped_rows", 0))
+    if skipped <= 0:
+        return None
+    kept = data.n_examples
+    return Finding(
+        pillar="Data Quality",
+        title=f"{skipped} rows skipped while loading",
+        status=Status.WARN,
+        why=("Rows with a missing or unreadable score were dropped. If many were "
+             "dropped, or they weren't random, the audit sees a biased slice of "
+             "your data."),
+        how_detected=(f"Loaded {kept} usable examples; skipped {skipped} rows "
+                      "whose score couldn't be read."),
+        how_to_fix="Check those rows in your results file and re-export if needed.",
+        details={"check": "data_quality", "skipped_rows": skipped, "kept": kept},
+    )
+
+
 def _pick_models(data: EvalData) -> tuple[str, str]:
     """Compare the two strongest models by mean score (stable, documented)."""
     if len(data.models) < 2:
@@ -63,6 +83,9 @@ def run_audit(
         model_a, model_b = _pick_models(data)
 
     findings: list[Finding] = []
+    dq = _data_quality(data)
+    if dq is not None:
+        findings.append(dq)
     findings += audit_statistical_validity(
         data, model_a, model_b, alpha=alpha,
         equivalence_margin=equivalence_margin, seed=seed)

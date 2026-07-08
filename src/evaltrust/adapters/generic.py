@@ -48,12 +48,16 @@ def _find_record_list(raw) -> list | None:
     return None
 
 
-def dicts_to_records(rows: list[dict]) -> list[Record]:
+def dicts_to_records(rows: list[dict], skipped: list | None = None) -> list[Record]:
     """Extract (example, model, score) records from dict rows.
 
     Handles both *long* format (a model column and a score column) and *wide*
     format (one score column per model). Non-numeric columns in wide format are
     ignored, so free-text fields like the prompt don't get mistaken for models.
+
+    Real files contain the occasional missing or unreadable score. Rather than
+    crash on one bad cell, such rows are skipped; if a ``skipped`` list is passed,
+    a short reason is appended for each so the audit can report the count.
     """
     keys = rows[0].keys()
     id_key = _first_alias(keys, ID_KEYS)
@@ -70,8 +74,13 @@ def dicts_to_records(rows: list[dict]) -> list[Record]:
                   else DEFAULT_METRIC)
 
         if model_key and score_key:
-            records.append(Record(ex_id, str(row[model_key]),
-                                  coerce_score(row[score_key]), judge, metric))
+            try:
+                score = coerce_score(row[score_key])
+            except ValueError:
+                if skipped is not None:
+                    skipped.append(f"row {idx}: unreadable score {row.get(score_key)!r}")
+                continue
+            records.append(Record(ex_id, str(row[model_key]), score, judge, metric))
         else:
             reserved = {k for k in (id_key, judge_key, metric_key) if k}
             for col, val in row.items():
@@ -98,7 +107,10 @@ class GenericRecordsAdapter:
         rows = _find_record_list(raw)
         if rows is None:
             raise ValueError("No record list found for the generic adapter")
-        return records_to_evaldata(dicts_to_records(rows), self.source_format)
+        skipped: list = []
+        records = dicts_to_records(rows, skipped)
+        return records_to_evaldata(records, self.source_format,
+                                   {"skipped_rows": len(skipped)})
 
 
 class NativeNestedAdapter:

@@ -29,7 +29,9 @@ def _load_csv(text: str) -> EvalData:
     rows = list(csv.DictReader(io.StringIO(text)))
     if not rows:
         raise UnknownFormatError("The CSV file has no data rows.")
-    return records_to_evaldata(dicts_to_records(rows), "csv")
+    skipped: list = []
+    records = dicts_to_records(rows, skipped)
+    return records_to_evaldata(records, "csv", {"skipped_rows": len(skipped)})
 
 
 def _load_json(text: str) -> EvalData:
@@ -82,25 +84,28 @@ def load_suite(path: str) -> "OrderedDict[str, EvalData]":
     text = p.read_text()
     suffix = p.suffix.lower()
 
+    def _suite_from_rows(rows, fmt):
+        skipped: list = []
+        records = dicts_to_records(rows, skipped)
+        return records_to_suite(records, fmt, {"skipped_rows": len(skipped)})
+
     if suffix == ".csv":
         rows = list(csv.DictReader(io.StringIO(text)))
         if not rows:
             raise UnknownFormatError("The CSV file has no data rows.")
-        return records_to_suite(dicts_to_records(rows), "csv")
+        return _suite_from_rows(rows, "csv")
 
     # JSON (or fallback): only the generic record list can carry a metric column.
     try:
         raw = json.loads(text)
         adapter = detect_adapter(raw)
         if adapter.source_format == "generic":
-            rows = _find_record_list(raw)
-            return records_to_suite(dicts_to_records(rows), "generic")
+            return _suite_from_rows(_find_record_list(raw), "generic")
         return OrderedDict([(DEFAULT_METRIC, adapter.parse(raw))])
     except (json.JSONDecodeError, UnknownFormatError):
         if suffix == ".json":
             raise
-        rows = list(csv.DictReader(io.StringIO(text)))
-        return records_to_suite(dicts_to_records(rows), "csv")
+        return _suite_from_rows(list(csv.DictReader(io.StringIO(text))), "csv")
 
 
 def load_comparison(
