@@ -12,6 +12,8 @@ that tell you whether to believe it, before you ship on a gap that might be luck
   its thresholds.
 - [**Integrations**](integrations.md) — using EvalTrust standalone, embedded in
   your eval/pytest, or in CI.
+- [**Configuration**](configuration.md) — set your team's thresholds once in a
+  config file.
 - [**Input formats**](input-formats.md) — what you can feed EvalTrust and how it
   detects each format.
 - [**Writing a format adapter**](adapters.md) — a guide for contributors adding

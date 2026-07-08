@@ -17,10 +17,13 @@ from typing import List, Optional
 import typer
 from rich.console import Console
 
+from dataclasses import replace
+
 from .adapters.registry import UnknownFormatError
 from .audit.runner import run_audit
 from .audit.suite import audit_suite
 from .audit.verdict import _LEVEL_RANK, VerdictLevel, coerce_level
+from .config import AuditConfig
 from .core.ingest import load_comparison, load_suite
 from .report.terminal import (
     print_report,
@@ -50,11 +53,15 @@ def audit(
         None, "--model-a", help="Model to compare (or label for the first file)."),
     model_b: Optional[str] = typer.Option(
         None, "--model-b", help="Model to compare (or label for the second file)."),
-    alpha: float = typer.Option(0.05, "--alpha", help="Significance level."),
-    equivalence_margin: float = typer.Option(
-        0.05, "--equivalence-margin",
+    alpha: Optional[float] = typer.Option(
+        None, "--alpha", help="Significance level (overrides config; default 0.05)."),
+    equivalence_margin: Optional[float] = typer.Option(
+        None, "--equivalence-margin",
         help="Largest score gap considered practically negligible (for equivalence)."),
-    seed: int = typer.Option(0, "--seed", help="Seed for reproducible resampling."),
+    seed: Optional[int] = typer.Option(
+        None, "--seed", help="Seed for reproducible resampling."),
+    config_path: Optional[str] = typer.Option(
+        None, "--config", help="Path to a config TOML (default: .evaltrust.toml or pyproject)."),
     strict: bool = typer.Option(
         False, "--strict", help="Exit non-zero if confidence is Low."),
     fail_under: Optional[str] = typer.Option(
@@ -76,24 +83,32 @@ def audit(
         _err.print("[red]Provide at most two files (one, or two to compare).[/red]")
         raise typer.Exit(code=2)
 
+    # Config: a file (explicit --config, or .evaltrust.toml / pyproject) provides
+    # the team's policy; any flag the user passed overrides it.
+    try:
+        cfg = AuditConfig.load(path=config_path)
+    except (OSError, ValueError) as e:
+        _err.print(f"[red]Could not read config: {e}[/red]")
+        raise typer.Exit(code=2)
+    overrides = {k: v for k, v in (("alpha", alpha),
+                                   ("equivalence_margin", equivalence_margin),
+                                   ("seed", seed)) if v is not None}
+    cfg = replace(cfg, **overrides)
+
     suite_report = None
     report = None
     try:
         if len(results) == 2:
             data = load_comparison(results, label_a=model_a, label_b=model_b)
-            report = run_audit(data, alpha=alpha,
-                               equivalence_margin=equivalence_margin, seed=seed)
+            report = run_audit(data, config=cfg)
         else:
             suite = load_suite(results[0])
             if len(suite) > 1:
                 suite_report = audit_suite(
-                    suite, model_a=model_a, model_b=model_b, alpha=alpha,
-                    equivalence_margin=equivalence_margin, seed=seed)
+                    suite, model_a=model_a, model_b=model_b, config=cfg)
             else:
                 data = next(iter(suite.values()))
-                report = run_audit(data, model_a=model_a, model_b=model_b,
-                                   alpha=alpha, equivalence_margin=equivalence_margin,
-                                   seed=seed)
+                report = run_audit(data, model_a=model_a, model_b=model_b, config=cfg)
     except FileNotFoundError as e:
         _err.print(f"[red]{e}[/red]")
         raise typer.Exit(code=2)

@@ -13,10 +13,11 @@ the number of metrics, which is the simplest defensible correction.
 from __future__ import annotations
 
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 
+from ..config import AuditConfig
 from ..core.schema import EvalData
 from .runner import AuditReport, run_audit
 from .verdict import VerdictLevel, enforce_level
@@ -84,22 +85,25 @@ def audit_suite(
     equivalence_margin: float = 0.05,
     seed: int = 0,
     correct: bool = True,
+    config: "AuditConfig | None" = None,
 ) -> SuiteReport:
     if not suite:
         raise ValueError("The suite is empty.")
 
+    cfg = config or AuditConfig(alpha=alpha, equivalence_margin=equivalence_margin,
+                                seed=seed)
     model_a, model_b = _suite_models(suite, model_a, model_b)
 
     k = len(suite)
-    corrected_alpha = alpha / k if (correct and k > 1) else alpha
-    correction = (f"Bonferroni: alpha {alpha} / {k} metrics = {corrected_alpha:.4f}"
-                  if corrected_alpha != alpha else "none (single metric)")
+    corrected_alpha = cfg.alpha / k if (correct and k > 1) else cfg.alpha
+    correction = (f"Bonferroni: alpha {cfg.alpha} / {k} metrics = {corrected_alpha:.4f}"
+                  if corrected_alpha != cfg.alpha else "none (single metric)")
+    metric_cfg = replace(cfg, alpha=corrected_alpha)
 
     reports: "OrderedDict[str, AuditReport]" = OrderedDict()
     for metric, data in suite.items():
         reports[metric] = run_audit(
-            data, model_a=model_a, model_b=model_b,
-            alpha=corrected_alpha, equivalence_margin=equivalence_margin, seed=seed)
+            data, model_a=model_a, model_b=model_b, config=metric_cfg)
 
-    return SuiteReport(reports=reports, alpha=alpha,
+    return SuiteReport(reports=reports, alpha=cfg.alpha,
                        corrected_alpha=corrected_alpha, correction=correction)

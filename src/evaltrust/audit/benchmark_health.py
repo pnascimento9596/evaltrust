@@ -22,7 +22,10 @@ MIN_SPREAD = 0.01            # pooled std below this = no discriminating signal
 
 
 def audit_benchmark_health(
-    data: EvalData, models: list[str] | None = None
+    data: EvalData,
+    models: list[str] | None = None,
+    saturation_fraction: float = SATURATION_FRACTION,
+    min_spread: float = MIN_SPREAD,
 ) -> list[Finding]:
     models = models or data.models
     per_model = {
@@ -33,16 +36,16 @@ def audit_benchmark_health(
     pooled = np.concatenate([v for v in per_model.values() if v.size])
 
     return [
-        _saturation(per_model, pooled),
-        _discrimination(pooled),
+        _saturation(per_model, pooled, saturation_fraction),
+        _discrimination(pooled, min_spread),
     ]
 
 
-def _saturation(per_model, pooled) -> Finding:
+def _saturation(per_model, pooled, saturation_fraction) -> Finding:
     ceiling = float(pooled.max())
     top_mean = max(float(v.mean()) for v in per_model.values() if v.size)
     frac = (top_mean / ceiling) if ceiling > 0 else 0.0
-    saturated = ceiling > 0 and frac >= SATURATION_FRACTION
+    saturated = ceiling > 0 and frac >= saturation_fraction
 
     return Finding(
         pillar=PILLAR,
@@ -68,9 +71,9 @@ def _saturation(per_model, pooled) -> Finding:
     )
 
 
-def _discrimination(pooled) -> Finding:
+def _discrimination(pooled, min_spread) -> Finding:
     spread = float(pooled.std())
-    discriminating = spread >= MIN_SPREAD
+    discriminating = spread >= min_spread
 
     return Finding(
         pillar=PILLAR,
@@ -84,7 +87,7 @@ def _discrimination(pooled) -> Finding:
         ),
         how_detected=(
             f"The pooled standard deviation of scores was {spread:.4f} "
-            f"(threshold {MIN_SPREAD})."
+            f"(threshold {min_spread})."
         ),
         how_to_fix=(
             "The benchmark produces a healthy spread of scores."

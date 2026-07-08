@@ -90,6 +90,28 @@ def test_fail_under_bad_level_is_an_error(tmp_path):
     assert result.exit_code == 2
 
 
+def test_config_file_changes_thresholds(tmp_path):
+    import json as _json
+    # Two models with the same ~70% rate: not significant.
+    raw = {"models": ["A", "B"], "examples": [
+        {"id": str(i), "scores": {"A": 1 if i % 10 < 7 else 0,
+                                  "B": 1 if (i + 3) % 10 < 7 else 0}}
+        for i in range(120)]}
+    data_file = write(tmp_path, "d.json", raw)
+    policy = tmp_path / "policy.toml"
+    policy.write_text("equivalence_margin = 1.0\n")   # everything is "equivalent"
+    result = runner.invoke(app, ["audit", data_file, "--config", str(policy), "--json"])
+    payload = _json.loads(result.stdout)
+    decision = [f for f in payload["findings"] if f["details"].get("check") == "decision"][0]
+    assert decision["details"]["outcome"] == "equivalent"
+
+
+def test_bad_config_path_errors(tmp_path):
+    result = runner.invoke(app, ["audit", noise_file(tmp_path), "--config",
+                                 str(tmp_path / "nope.toml")])
+    assert result.exit_code == 2
+
+
 def single_model_file(tmp_path, name, model, n, rate):
     raw = {"models": [model], "examples": [
         {"id": str(i), "scores": {model: 1 if i < int(n * rate) else 0}}

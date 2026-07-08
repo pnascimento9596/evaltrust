@@ -1,0 +1,60 @@
+# Configuration
+
+EvalTrust ships with sensible defaults, but a team can set its own statistical
+policy once and have it applied everywhere the audit runs — locally, in CI, and
+in the Python API.
+
+## Where config comes from
+
+In order of precedence (highest first):
+
+1. **Command-line flags** — e.g. `--alpha`, `--equivalence-margin`, `--seed`.
+2. **An explicit file** — `evaltrust audit results.json --config policy.toml`.
+3. **`.evaltrust.toml`** in the current directory.
+4. **`[tool.evaltrust]`** in `pyproject.toml`.
+5. **Built-in defaults**.
+
+## Example `.evaltrust.toml`
+
+Drop this in your repo and every audit uses it:
+
+```toml
+alpha = 0.01                     # stricter significance than the 0.05 default
+equivalence_margin = 0.02        # what counts as "no real difference", in score units
+judge_agreement_threshold = 0.9  # require 90% inter-judge agreement to pass
+```
+
+Or the same under `pyproject.toml`:
+
+```toml
+[tool.evaltrust]
+alpha = 0.01
+saturation_fraction = 0.9
+```
+
+## All settings
+
+| Key | Default | What it controls |
+|-----|---------|------------------|
+| `alpha` | `0.05` | Significance level. |
+| `equivalence_margin` | `0.05` | Largest score gap treated as practically negligible (for equivalence). |
+| `power_target` | `0.8` | Target power for the sample-size / minimum-detectable-effect advice. |
+| `smallest_meaningful_effect` | `0.2` | Cohen's d worth powering for when recommending more examples. |
+| `saturation_fraction` | `0.95` | Mean-over-ceiling above which a benchmark is "saturated". |
+| `min_spread` | `0.01` | Pooled score std below which the benchmark can't discriminate. |
+| `judge_agreement_threshold` | `0.8` | Inter-judge agreement required to pass. |
+| `n_resamples` | `10000` | Bootstrap / permutation resamples. |
+| `seed` | `0` | RNG seed (reproducibility). |
+
+## From Python
+
+```python
+from evaltrust.config import AuditConfig
+from evaltrust import run_audit
+
+cfg = AuditConfig(alpha=0.01, equivalence_margin=0.02)
+report = run_audit(data, config=cfg)
+```
+
+`AuditConfig.load()` reads the same files the CLI does, if you want to honour a
+repo's policy in your own scripts.

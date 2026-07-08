@@ -52,7 +52,7 @@ def _judge_names(data: EvalData) -> list[str]:
 
 
 def audit_judge_reliability(
-    data: EvalData, model_a: str, model_b: str
+    data: EvalData, model_a: str, model_b: str, agreement_threshold: float = 0.8
 ) -> list[Finding]:
     if not data.has_judges:
         return [_skip("The results file contains no per-judge scores.")]
@@ -65,7 +65,7 @@ def audit_judge_reliability(
     if ratings is None:
         return [consensus,
                 _skip("Judges did not score a common set of items.")]
-    return [consensus, _agreement(ratings, judges)]
+    return [consensus, _agreement(ratings, judges, agreement_threshold)]
 
 
 def _consensus(data, judges, model_a, model_b) -> Finding:
@@ -119,7 +119,8 @@ def _rating_matrix(data, judges, model_a, model_b) -> np.ndarray | None:
     return np.array(rows, dtype=float)
 
 
-def _agreement(ratings: np.ndarray, judges: list[str]) -> Finding:
+def _agreement(ratings: np.ndarray, judges: list[str],
+               agreement_threshold: float = 0.8) -> Finding:
     agree = percent_agreement(ratings)
 
     # Outlier = judge with the lowest mean pairwise agreement with the others.
@@ -132,7 +133,7 @@ def _agreement(ratings: np.ndarray, judges: list[str]) -> Finding:
     outlier = judges[int(np.argmin(mean_pair))]
 
     kappa = _maybe_fleiss(ratings)
-    good = agree >= 0.8
+    good = agree >= agreement_threshold
     kappa_str = "n/a (non-categorical scores)" if kappa is None else f"{kappa:.3f}"
 
     return Finding(

@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from ..config import AuditConfig
 from ..core.schema import EvalData, Finding, Status
 from .benchmark_health import audit_benchmark_health
 from .judge_reliability import audit_judge_reliability
@@ -89,7 +90,13 @@ def run_audit(
     alpha: float = 0.05,
     equivalence_margin: float = 0.05,
     seed: int = 0,
+    config: "AuditConfig | None" = None,
 ) -> AuditReport:
+    # A config bundles every threshold; when not given, build one from the loose
+    # kwargs so existing callers keep working unchanged.
+    cfg = config or AuditConfig(alpha=alpha, equivalence_margin=equivalence_margin,
+                                seed=seed)
+
     if model_a is None or model_b is None:
         model_a, model_b = _pick_models(data)
 
@@ -98,11 +105,17 @@ def run_audit(
     if dq is not None:
         findings.append(dq)
     findings += audit_statistical_validity(
-        data, model_a, model_b, alpha=alpha,
-        equivalence_margin=equivalence_margin, seed=seed)
-    findings += audit_benchmark_health(data, [model_a, model_b])
+        data, model_a, model_b, alpha=cfg.alpha,
+        equivalence_margin=cfg.equivalence_margin, power_target=cfg.power_target,
+        smallest_meaningful_effect=cfg.smallest_meaningful_effect,
+        n_resamples=cfg.n_resamples, seed=cfg.seed)
+    findings += audit_benchmark_health(
+        data, [model_a, model_b],
+        saturation_fraction=cfg.saturation_fraction, min_spread=cfg.min_spread)
     findings += audit_repeatability(data, model_a, model_b)
-    findings += audit_judge_reliability(data, model_a, model_b)
+    findings += audit_judge_reliability(
+        data, model_a, model_b,
+        agreement_threshold=cfg.judge_agreement_threshold)
 
     return AuditReport(
         model_a=model_a,
