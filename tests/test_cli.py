@@ -16,6 +16,14 @@ def test_version_flag_prints_installed_version():
     assert result.stdout.strip() == package_version("evaltrust")
 
 
+def test_version_flag_is_eager_and_skips_command_parsing():
+    # --version must short-circuit before any command runs or arguments are
+    # validated, the way pip/pytest behave.
+    result = runner.invoke(app, ["--version", "audit"])
+    assert result.exit_code == 0
+    assert result.stdout.strip() == package_version("evaltrust")
+
+
 def write(tmp_path, name, obj):
     p = tmp_path / name
     p.write_text(json.dumps(obj))
