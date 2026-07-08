@@ -211,6 +211,61 @@ def render_suite_plain(suite, explain: bool = False) -> str:
     return ("\n".join(lines).rstrip() + "\n").translate(_ASCII)
 
 
+# --------------------------------------------------------------------------- #
+# Diff (regression) rendering
+# --------------------------------------------------------------------------- #
+
+def _diff_renderable(diff) -> Text:
+    t = Text()
+    t.append("EvalTrust  audit comparison\n", style="bold")
+    if not diff.changes:
+        t.append("No change between the two audits.\n", style="green")
+        return t
+
+    regs = [c for c in diff.changes if c.regression]
+    imps = [c for c in diff.changes if c.improvement]
+    neutral = [c for c in diff.changes if not c.regression and not c.improvement]
+
+    if regs:
+        t.append("\nRegressions\n", style="bold red")
+        for c in regs:
+            t.append("  ✗ ", style="red")
+            t.append(f"{c.scope} {c.field}: {c.old} → {c.new}\n")
+    if imps:
+        t.append("\nImprovements\n", style="bold green")
+        for c in imps:
+            t.append("  ✓ ", style="green")
+            t.append(f"{c.scope} {c.field}: {c.old} → {c.new}\n")
+    for c in neutral:
+        t.append(f"  · {c.scope} {c.field}: {c.old} → {c.new}\n", style="dim")
+    return t
+
+
+def render_diff(diff, width: int = 90) -> str:
+    console = Console(record=True, width=width, file=io.StringIO())
+    console.print(_diff_renderable(diff))
+    return console.export_text()
+
+
+def print_diff(diff) -> None:
+    Console().print(_diff_renderable(diff))
+
+
+def render_diff_plain(diff) -> str:
+    lines = ["EvalTrust audit comparison"]
+    if not diff.changes:
+        return "EvalTrust audit comparison\nNo change between the two audits.\n"
+    regs = [c for c in diff.changes if c.regression]
+    imps = [c for c in diff.changes if c.improvement]
+    if regs:
+        lines += ["", "Regressions"] + [
+            f"  [worse] {c.scope} {c.field}: {c.old} -> {c.new}" for c in regs]
+    if imps:
+        lines += ["", "Improvements"] + [
+            f"  [better] {c.scope} {c.field}: {c.old} -> {c.new}" for c in imps]
+    return ("\n".join(lines).rstrip() + "\n").translate(_ASCII)
+
+
 def render_plain(report: AuditReport, explain: bool = False) -> str:
     """Render the report as plain ASCII — safe for Windows, CI logs, and pipes."""
     v = report.verdict

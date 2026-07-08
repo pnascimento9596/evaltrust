@@ -12,12 +12,12 @@ process, so an audit can gate CI the way tests do.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
+from pathlib import Path
 from typing import List, Optional
 
 import typer
 from rich.console import Console
-
-from dataclasses import replace
 
 from .adapters.registry import UnknownFormatError
 from .audit.runner import run_audit
@@ -25,9 +25,12 @@ from .audit.suite import audit_suite
 from .audit.verdict import _LEVEL_RANK, VerdictLevel, coerce_level
 from .config import AuditConfig
 from .core.ingest import load_comparison, load_suite
+from .diff import compare
 from .report.terminal import (
+    print_diff,
     print_report,
     print_suite,
+    render_diff_plain,
     render_plain,
     render_suite_plain,
 )
@@ -150,6 +153,46 @@ def audit(
             raise typer.Exit(code=2)
         if _LEVEL_RANK[level] < _LEVEL_RANK[minimum]:
             raise typer.Exit(code=1)
+
+
+@app.command()
+def diff(
+    old: str = typer.Argument(..., help="Earlier audit JSON (from `audit --json`)."),
+    new: str = typer.Argument(..., help="Newer audit JSON to compare against it."),
+    fail_on_regression: bool = typer.Option(
+        True, "--fail-on-regression/--no-fail-on-regression",
+        help="Exit non-zero if the newer audit regressed."),
+    as_json: bool = typer.Option(False, "--json", help="Emit the diff as JSON."),
+    plain: bool = typer.Option(False, "--plain", help="Plain ASCII output."),
+) -> None:
+    """Compare two saved audits and flag regressions between runs."""
+    try:
+        old_data = json.loads(Path(old).read_text())
+        new_data = json.loads(Path(new).read_text())
+    except FileNotFoundError as e:
+        _err.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=2)
+    except json.JSONDecodeError as e:
+        _err.print(f"[red]Not valid audit JSON: {e}[/red]")
+        raise typer.Exit(code=2)
+
+    try:
+        result = compare(old_data, new_data)
+    except ValueError as e:
+        _err.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=2)
+
+    if as_json:
+        typer.echo(json.dumps(
+            {"regression": result.has_regression,
+             "changes": [vars(c) for c in result.changes]}, indent=2))
+    elif plain:
+        typer.echo(render_diff_plain(result), nl=False)
+    else:
+        print_diff(result)
+
+    if fail_on_regression and result.has_regression:
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":

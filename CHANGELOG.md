@@ -14,6 +14,22 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   doesn't manufacture false wins. The suite's confidence is its weakest metric.
 - `evaltrust.audit_suite(...)` Python API and `SuiteReport` (with `to_dict()`);
   the CLI auto-detects multi-metric files and renders a per-metric summary.
+- **Embed it in your own eval/tests:** `report.raise_if_below(level)` raises an
+  `UntrustworthyError` (an `AssertionError`) so it fails a pytest cleanly.
+- **Config file:** set a team's thresholds once in `.evaltrust.toml` or
+  `[tool.evaltrust]`; `AuditConfig` bundles every threshold and all are now
+  configurable. CLI `--config`, plus flag overrides.
+- **CI gate:** `--fail-under high|moderate|low` and a bundled GitHub Action.
+- **Judge calibration:** when the file has a human/gold judge, measure how well
+  each AI judge agrees with it (`--reference-judge`, or auto-detected names).
+- **Regression detection:** `evaltrust diff old.json new.json` flags where
+  confidence dropped or a real win was lost between two runs.
+
+### Changed
+
+- Ingestion skips rows with missing/unreadable scores instead of crashing, and
+  reports the count as a Data Quality finding. A model with no comparable scores
+  now errors cleanly.
 
 ## [0.3.0] — 2026-07-07
 

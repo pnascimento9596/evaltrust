@@ -75,6 +75,24 @@ Or without the action, just call the CLI:
           evaltrust audit results.json --plain --fail-under moderate
 ```
 
+## Catching regressions between runs
+
+Save each run's audit as JSON, then compare across releases to catch a metric
+that got worse:
+
+```bash
+evaltrust audit results.json --json > audit-$(git rev-parse --short HEAD).json
+evaltrust diff audit-last.json audit-new.json     # non-zero exit on a regression
+```
+
+```
+Regressions
+  ✗ safety confidence: HIGH → LOW
+  ✗ safety decision: significant → inconclusive
+```
+
+Use `--no-fail-on-regression` for a report-only diff.
+
 ## Exit codes and levels
 
 `--fail-under LEVEL` (and the action's `min-confidence`) accept `high`,

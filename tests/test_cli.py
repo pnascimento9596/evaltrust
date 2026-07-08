@@ -112,6 +112,35 @@ def test_bad_config_path_errors(tmp_path):
     assert result.exit_code == 2
 
 
+def _audit_json(tmp_path, src, name):
+    out = runner.invoke(app, ["audit", src, "--json"]).stdout
+    (tmp_path / name).write_text(out)
+    return str(tmp_path / name)
+
+
+def test_diff_detects_regression(tmp_path):
+    good = _audit_json(tmp_path, clean_win_file(tmp_path), "a.json")   # HIGH
+    bad = _audit_json(tmp_path, noise_file(tmp_path), "b.json")        # LOW
+    result = runner.invoke(app, ["diff", good, bad])
+    assert result.exit_code == 1
+    assert "Regression" in result.stdout
+
+
+def test_diff_no_change_exits_zero(tmp_path):
+    a = _audit_json(tmp_path, clean_win_file(tmp_path), "a.json")
+    result = runner.invoke(app, ["diff", a, a])
+    assert result.exit_code == 0
+    assert "No change" in result.stdout
+
+
+def test_diff_improvement_does_not_fail(tmp_path):
+    bad = _audit_json(tmp_path, noise_file(tmp_path), "b.json")
+    good = _audit_json(tmp_path, clean_win_file(tmp_path), "a.json")
+    result = runner.invoke(app, ["diff", bad, good])
+    assert result.exit_code == 0
+    assert "Improvement" in result.stdout
+
+
 def single_model_file(tmp_path, name, model, n, rate):
     raw = {"models": [model], "examples": [
         {"id": str(i), "scores": {model: 1 if i < int(n * rate) else 0}}
