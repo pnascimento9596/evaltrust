@@ -150,6 +150,7 @@ def _comparison(data, model_a, model_b, cfg, significant=None) -> AuditReport:
     findings += audit_judge_calibration(
         data, model_a, model_b,
         threshold=cfg.judge_agreement_threshold,
+        correlation_threshold=cfg.judge_correlation_threshold,
         reference_judge=cfg.reference_judge)
 
     return AuditReport(

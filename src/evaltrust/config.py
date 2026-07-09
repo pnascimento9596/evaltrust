@@ -24,7 +24,8 @@ class AuditConfig:
     precision_margin: float = 0.05          # target CI half-width for a single score
     saturation_fraction: float = 0.95       # mean/ceiling that counts as saturated
     min_spread: float = 0.01                # pooled std below which no discrimination
-    judge_agreement_threshold: float = 0.8  # inter-judge agreement to pass
+    judge_agreement_threshold: float = 0.8  # inter-judge and binary calibration floor
+    judge_correlation_threshold: float = 0.8  # continuous calibration Spearman floor
     reference_judge: str | None = None      # judge treated as ground truth (else auto)
     n_resamples: int = 10_000               # bootstrap / permutation resamples
     seed: int = 0                           # RNG seed (reproducibility)
