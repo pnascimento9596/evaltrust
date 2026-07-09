@@ -155,8 +155,13 @@ def _decision(outcome, p, alpha, test_name, test_detail, lo, hi, confidence,
 
 def _effect_size(data, diffs, binary, leader, trailer) -> Finding:
     if binary:
-        p_leader = _mean_score(data, leader)
-        p_trailer = _mean_score(data, trailer)
+        # Pass rates must come from the paired sample, the same examples the
+        # p-value (McNemar) and the CI use -- an unpaired mean over every example
+        # a model scored would compute the effect size on a different sample than
+        # the significance test, and can flip the magnitude that drives PASS/WARN.
+        leader_scores, trailer_scores = data.paired_scores(leader, trailer)
+        p_leader = float(leader_scores.mean())
+        p_trailer = float(trailer_scores.mean())
         rd = p_leader - p_trailer
         h = cohens_h(p_leader, p_trailer)
         magnitude = magnitude_label(h)
@@ -227,8 +232,3 @@ def _precision(outcome, n, alpha, power_target, smallest_meaningful_effect) -> F
                  "minimum_detectable_effect": mde,
                  "conclusive": conclusive},
     )
-
-
-def _mean_score(data: EvalData, model: str) -> float:
-    vals = [ex.scores[model] for ex in data.examples if model in ex.scores]
-    return float(np.mean(vals))
