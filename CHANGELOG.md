@@ -23,6 +23,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   verdict it drives — could disagree with the significance test; both now use the
   same paired sample.
 
+### Changed
+
+- **Judge calibration** now handles continuous judge scores (e.g. a 1–5 rubric):
+  it switches from exact-match agreement to a Spearman rank correlation against
+  the reference judge, and names the metric in the finding so a correlation is
+  never mistaken for an agreement rate. Binary pass/fail judges are unchanged.
+
 ## [0.5.0] — 2026-07-08
 
 ### Added
