@@ -10,6 +10,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - `evaltrust --version` prints the installed version and exits.
 
+### Fixed
+
+- **Binary effect size is now computed on the paired sample.** The pass-rate
+  effect size (risk difference and Cohen's *h*) for pass/fail data was measured
+  over every example each model scored, while the significance test (McNemar) and
+  the confidence interval used only the paired examples. On data where the two
+  models scored different example sets the effect size — and the PASS/WARN
+  verdict it drives — could disagree with the significance test; both now use the
+  same paired sample.
+
 ## [0.5.0] — 2026-07-08
 
 ### Added

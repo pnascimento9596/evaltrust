@@ -10,6 +10,7 @@ The audit produces three findings:
 """
 
 import numpy as np
+import pytest
 
 from evaltrust.audit.statistical import audit_statistical_validity
 from evaltrust.core.schema import EvalData, Example, Status
@@ -59,6 +60,42 @@ def test_binary_effect_size_reports_proportion_difference():
     # 80% vs 0% -> risk difference of 0.8, reported in percentage points.
     assert effect.details["risk_difference"] == 0.8
     assert "cohens_h" in effect.details
+
+
+def test_binary_effect_size_uses_only_the_paired_sample():
+    # The effect size must be computed on the SAME paired sample as the p-value
+    # (McNemar) and the CI. Ten examples are scored by both models (A passes
+    # 5/10, B passes 6/10 -> a paired risk difference of 0.10), plus ten extra
+    # examples only B scored. McNemar and the bootstrap CI drop the unpaired
+    # extras, so the effect size must drop them too -- otherwise B's pass rate is
+    # inflated and the magnitude (which drives PASS/WARN) is computed on a
+    # different sample than the significance test.
+    examples = [
+        Example(id=f"p{i}", scores={"A": 1.0 if i < 5 else 0.0,
+                                    "B": 1.0 if i < 6 else 0.0})
+        for i in range(10)
+    ]
+    examples += [Example(id=f"only_b{i}", scores={"B": 1.0}) for i in range(10)]
+    data = EvalData(models=["A", "B"], examples=examples,
+                    source_format="test", metadata={})
+
+    effect = by_check(audit_statistical_validity(data, "A", "B"), "effect_size")
+
+    # Reference values, computed independently on the paired sample only
+    # (B 60% vs A 50%): risk difference 0.10, and Cohen's h derived here from the
+    # arcsine formula on those proportions rather than by calling the
+    # implementation's own cohens_h -- so the assertion validates against a
+    # reference, not against the code under test.
+    expected_rd = 0.6 - 0.5
+    expected_h = 2 * np.arcsin(np.sqrt(0.6)) - 2 * np.arcsin(np.sqrt(0.5))
+    assert effect.details["risk_difference"] == pytest.approx(expected_rd)
+    assert effect.details["cohens_h"] == pytest.approx(expected_h)
+    # The paired proportions must also show through in the prose.
+    assert "60.0%" in effect.how_detected and "50.0%" in effect.how_detected
+    # Paired truth is a small effect (WARN); the unpaired bug reported it as a
+    # medium effect (PASS) -- a flipped verdict.
+    assert effect.details["magnitude"] == "small"
+    assert effect.status is Status.WARN
 
 
 def test_tiny_symmetric_difference_is_equivalent_not_a_failure():
