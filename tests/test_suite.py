@@ -319,3 +319,73 @@ def test_bonferroni_adjusted_p_matches_statsmodels():
         _holm_pvalues(suite), alpha=0.05, method="bonferroni")
     got = [bonf.adjusted_p[m] for m in suite]
     assert got == pytest.approx(list(ref_adjusted))
+
+
+# ---------------------------------------------------------------------------
+# Gated metrics and metric weights (issue #26)
+# ---------------------------------------------------------------------------
+
+def test_gated_metric_failure_forces_low():
+    """A gated metric that isn't HIGH pulls the whole suite to LOW."""
+    suite = {
+        "correctness": metric_data([0] * 200, [1] * 180 + [0] * 20),  # HIGH
+        "safety": metric_data([0, 1] * 60, [1, 0] * 60),              # LOW
+    }
+    cfg = AuditConfig(gated_metrics=frozenset({"safety"}))
+    report = audit_suite(suite, config=cfg, seed=0)
+    assert report.overall_level is VerdictLevel.LOW
+
+
+def test_gated_metric_pass_does_not_block():
+    """A gated metric that IS HIGH does not pull the suite down."""
+    suite = {
+        "correctness": metric_data([0] * 200, [1] * 180 + [0] * 20),  # HIGH
+        "safety": metric_data([0] * 200, [1] * 180 + [0] * 20),       # HIGH
+    }
+    cfg = AuditConfig(gated_metrics=frozenset({"safety"}))
+    report = audit_suite(suite, config=cfg, seed=0)
+    assert report.overall_level is VerdictLevel.HIGH
+
+
+def test_ungated_metric_does_not_affect_gate():
+    """A non-gated low metric does not trigger the gate logic."""
+    suite = {
+        "correctness": metric_data([0, 1] * 60, [1, 0] * 60),         # LOW
+        "safety": metric_data([0] * 200, [1] * 180 + [0] * 20),       # HIGH
+    }
+    cfg = AuditConfig(gated_metrics=frozenset({"safety"}))
+    report = audit_suite(suite, config=cfg, seed=0)
+    # safety passes gate; overall falls back to weakest (correctness = LOW)
+    assert report.overall_level is VerdictLevel.LOW
+
+
+def test_metric_weights_favour_high_scoring_metric():
+    """A heavily-weighted HIGH metric lifts the overall level above LOW."""
+    suite = {
+        "correctness": metric_data([0] * 200, [1] * 180 + [0] * 20),  # HIGH
+        "noise": metric_data([0, 1] * 60, [1, 0] * 60),               # LOW
+    }
+    cfg = AuditConfig(metric_weights={"correctness": 9.0, "noise": 1.0})
+    report = audit_suite(suite, config=cfg, seed=0)
+    # weighted avg rank: (2*9 + 0*1)/10 = 1.8 → HIGH
+    assert report.overall_level is VerdictLevel.HIGH
+
+
+def test_metric_weights_default_behaviour_unchanged():
+    """Without weights or gates, overall_level is still the weakest metric."""
+    suite = {
+        "good": metric_data([0] * 200, [1] * 180 + [0] * 20),
+        "noise": metric_data([0, 1] * 60, [1, 0] * 60),
+    }
+    report = audit_suite(suite, seed=0)
+    assert report.overall_level is VerdictLevel.LOW
+
+
+def test_unknown_gated_metric_is_ignored():
+    """A gated metric name not present in the suite is silently ignored."""
+    suite = {
+        "correctness": metric_data([0] * 200, [1] * 180 + [0] * 20),
+    }
+    cfg = AuditConfig(gated_metrics=frozenset({"nonexistent"}))
+    report = audit_suite(suite, config=cfg, seed=0)
+    assert report.overall_level is VerdictLevel.HIGH

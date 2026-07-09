@@ -1,14 +1,29 @@
 """Audit a multi-metric evaluation suite.
 
-Audits each metric's dataset for the same model pair, correcting the significance
-threshold for the number of metrics via Bonferroni (default) or Holm-Bonferroni.
-Holm runs in two passes because a metric's threshold depends on its p-value rank.
+Real evals score several metrics per example (correctness, safety, helpfulness).
+A suite is just a set of named single-metric datasets, so we audit each one with
+the existing engine, comparing the *same* pair of models throughout, and correct
+the significance threshold for the number of metrics tested.
+
+Testing many metrics at the same alpha inflates false positives (test 20 metrics
+at 0.05 and one looks "significant" by luck). Two corrections are available:
+
+- **Bonferroni** divides the threshold by the number of metrics (``alpha / k``) —
+  the simplest defensible correction, and the default.
+- **Holm-Bonferroni** is a step-down refinement: it ranks the metrics by p-value
+  and tests the i-th smallest against ``alpha / (k - i)``, so it rejects at least
+  as many metrics as Bonferroni while controlling the same family-wise error
+  rate. Because a metric's threshold depends on the *rank* of its p-value, Holm
+  runs in two passes — once to read every p-value, then again re-running each
+  metric at its Holm-effective alpha so its status, prose, and equivalence CI are
+  all consistent with the correction applied.
 """
 
 from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import dataclass, field, replace
+from types import MappingProxyType
 
 import numpy as np
 
@@ -32,17 +47,71 @@ class SuiteReport:
     correction: str
     metric_alphas: "OrderedDict[str, float]" = field(default_factory=OrderedDict)
     adjusted_p: "OrderedDict[str, float]" = field(default_factory=OrderedDict)
+    _config_gated: frozenset = field(default_factory=frozenset, compare=False, repr=False)
+    _config_weights: "dict | MappingProxyType" = field(
+        default_factory=dict, compare=False, repr=False)
 
     @property
     def overall_level(self) -> VerdictLevel:
-        """The worst verdict across metrics; the suite is only as trustworthy as
-        its weakest metric."""
-        return min((r.verdict.level for r in self.reports.values()),
-                   key=lambda lvl: _RANK[lvl])
+        """Roll up per-metric verdicts into one suite-level verdict.
+
+        Evaluation order (first matching rule wins):
+
+        1. **Gate check** — if any gated metric (``_config_gated``) is below
+           HIGH the whole suite is LOW, regardless of every other metric.
+        2. **Weighted floor** — if ``_config_weights`` is non-empty, compute a
+           weight-averaged rank and map it back to a VerdictLevel, but the
+           result is *floored* at the weakest metric so weights can only
+           de-emphasise metrics, never mask a failure from ``--fail-under``.
+        3. **Fallback** — plain weakest-metric (original behaviour).
+
+        Only named metrics present in the suite are considered; unknown gate or
+        weight names are silently ignored.
+        """
+        levels = {m: r.verdict.level for m, r in self.reports.items()}
+
+        # 1. Gated metrics: any gate failure → whole suite is LOW.
+        for metric, level in levels.items():
+            if metric in self._config_gated and level is not VerdictLevel.HIGH:
+                return VerdictLevel.LOW
+
+        # Compute the weakest metric — used both as the fallback and as the
+        # floor when weights are active.
+        weakest = min(levels.values(), key=lambda lvl: _RANK[lvl])
+
+        # 2. Weighted average with a weakest-metric floor.
+        if self._config_weights:
+            # Only weight metrics that are both named in the suite AND in the
+            # weight map; unknown weight names simply don't participate.
+            relevant = {m: lvl for m, lvl in levels.items()
+                        if m in self._config_weights}
+            if relevant:
+                total_w = sum(self._config_weights[m] for m in relevant)
+                avg_rank = sum(
+                    _RANK[lvl] * self._config_weights[m] / total_w
+                    for m, lvl in relevant.items()
+                )
+                # Map averaged rank → VerdictLevel.
+                if avg_rank < 0.5:
+                    weighted_level = VerdictLevel.LOW
+                elif avg_rank < 1.5:
+                    weighted_level = VerdictLevel.MODERATE
+                else:
+                    weighted_level = VerdictLevel.HIGH
+                # Floor: weights can reduce a metric's influence but cannot
+                # lift the suite above what the un-weighted weakest-metric
+                # rule would give.  This preserves the "only as trustworthy
+                # as its weakest metric" guarantee for --fail-under consumers.
+                return (weakest
+                        if _RANK[weighted_level] > _RANK[weakest]
+                        else weighted_level)
+
+        # 3. Default: weakest metric wins.
+        return weakest
 
     def raise_if_below(self, minimum: "str | VerdictLevel" = "moderate") -> "SuiteReport":
-        """Raise UntrustworthyError if the suite's overall (weakest) confidence is
-        below ``minimum``. Returns self so it can be chained."""
+        """Raise UntrustworthyError if the suite's overall confidence is below
+        ``minimum``. Returns self so it can be chained."""
         enforce_level(self.overall_level, minimum, context="the metric suite")
         return self
 
@@ -55,6 +124,10 @@ class SuiteReport:
             "metric_alphas": dict(self.metric_alphas),
             "adjusted_p": dict(self.adjusted_p),
             "metrics": {m: r.to_dict() for m, r in self.reports.items()},
+            # Surface the applied policy so downstream JSON consumers know which
+            # gates and weights produced this overall_level.
+            "applied_gates": sorted(self._config_gated),
+            "applied_weights": dict(self._config_weights),
         }
 
 
@@ -92,8 +165,11 @@ def audit_suite(
 ) -> SuiteReport:
     """Audit every metric in a suite for the same model pair.
 
-    ``correction`` is ``{"bonferroni", "holm", "none"}``; ``None`` defers to the
-    config. ``correct=False`` is a deprecated alias for ``correction="none"``.
+    ``correction`` selects the multiple-comparison correction over
+    ``{"bonferroni", "holm", "none"}``; ``None`` defers to the config
+    (``AuditConfig.correction``, default ``"bonferroni"``). ``correct`` is a
+    deprecated legacy switch — ``correct=False`` still forces no correction; new
+    code should pass ``correction="none"`` instead.
     """
     if not suite:
         raise ValueError("The suite is empty.")
@@ -121,19 +197,12 @@ def audit_suite(
     return _holm_suite(suite, model_a, model_b, cfg, k)
 
 
-def _run_metrics(suite, model_a, model_b, cfg_for,
-                 significant_for=lambda _m: None) -> "OrderedDict[str, AuditReport]":
-    """Run one audit per metric.
-
-    ``cfg_for(metric)`` supplies each metric's config. ``significant_for(metric)``
-    optionally passes a pre-decided significance (used by Holm); the default
-    ``None`` lets each metric's audit decide with its own ``p < alpha``.
-    """
+def _run_metrics(suite, model_a, model_b, cfg_for) -> "OrderedDict[str, AuditReport]":
+    """Run one audit per metric; ``cfg_for(metric)`` supplies each metric's config."""
     reports: "OrderedDict[str, AuditReport]" = OrderedDict()
     for metric, data in suite.items():
         reports[metric] = run_audit(
-            data, model_a=model_a, model_b=model_b, config=cfg_for(metric),
-            significant=significant_for(metric))
+            data, model_a=model_a, model_b=model_b, config=cfg_for(metric))
     return reports
 
 
@@ -162,7 +231,8 @@ def _uncorrected_suite(suite, model_a, model_b, cfg, single: bool) -> SuiteRepor
     description = "none (single metric)" if single else "none (uncorrected)"
     return SuiteReport(reports=reports, alpha=cfg.alpha, corrected_alpha=cfg.alpha,
                        correction=description, metric_alphas=metric_alphas,
-                       adjusted_p=adjusted_p)
+                       adjusted_p=adjusted_p, _config_gated=cfg.gated_metrics,
+                       _config_weights=cfg.metric_weights)
 
 
 def _bonferroni_suite(suite, model_a, model_b, cfg, k: int) -> SuiteReport:
@@ -176,7 +246,9 @@ def _bonferroni_suite(suite, model_a, model_b, cfg, k: int) -> SuiteReport:
                   f"= {corrected_alpha:.4f}")
     return SuiteReport(reports=reports, alpha=cfg.alpha,
                        corrected_alpha=corrected_alpha, correction=description,
-                       metric_alphas=metric_alphas, adjusted_p=adjusted_p)
+                       metric_alphas=metric_alphas, adjusted_p=adjusted_p,
+                       _config_gated=cfg.gated_metrics,
+                       _config_weights=cfg.metric_weights)
 
 
 def _holm_suite(suite, model_a, model_b, cfg, k: int) -> SuiteReport:
@@ -188,15 +260,14 @@ def _holm_suite(suite, model_a, model_b, cfg, k: int) -> SuiteReport:
     pvalues = [_pvalue(pass1[m]) for m in metrics]
 
     rejected, adjusted = holm_bonferroni(pvalues, cfg.alpha)
-    alpha_for = dict(zip(metrics, _holm_step_thresholds(pvalues, rejected, cfg.alpha)))
-    rejected_for = dict(zip(metrics, rejected))
+    effective = _holm_effective_alphas(pvalues, rejected, cfg.alpha)
+    alpha_for = dict(zip(metrics, effective))
 
-    # Pass 2: each metric's audit is told whether Holm rejected it, and re-runs at
-    # its step threshold so the prose and equivalence CI quote that threshold.
+    # Pass 2: re-run each metric at its Holm-effective alpha so the decision
+    # status, prose, and equivalence CI (which uses 1 - 2*alpha) match it.
     reports = _run_metrics(
         suite, model_a, model_b,
-        lambda m: replace(cfg, alpha=alpha_for[m]),
-        significant_for=lambda m: rejected_for[m])
+        lambda m: replace(cfg, alpha=alpha_for[m]))
 
     metric_alphas = OrderedDict((m, alpha_for[m]) for m in metrics)
     adjusted_p = OrderedDict((m, adjusted[i]) for i, m in enumerate(metrics))
@@ -207,14 +278,28 @@ def _holm_suite(suite, model_a, model_b, cfg, k: int) -> SuiteReport:
                   f"of {k} metrics significant")
     return SuiteReport(reports=reports, alpha=cfg.alpha,
                        corrected_alpha=corrected_alpha, correction=description,
-                       metric_alphas=metric_alphas, adjusted_p=adjusted_p)
+                       metric_alphas=metric_alphas, adjusted_p=adjusted_p,
+                       _config_gated=cfg.gated_metrics,
+                       _config_weights=cfg.metric_weights)
 
 
-def _holm_step_thresholds(pvalues, rejected, alpha: float) -> list[float]:
-    """Per-metric Holm step threshold, for reporting only (not the decision).
+def _holm_effective_alphas(pvalues, rejected, alpha: float) -> list[float]:
+    """Per-metric alpha reproducing the Holm decision under the audit's ``p < alpha``.
 
-    A rejected metric gets its own step ``alpha / (k - rank)``; a retained one
-    gets the first failure's threshold. Quoted in prose and the TOST interval.
+    A rejected metric uses its own step threshold ``alpha / (k - rank)``; a
+    retained metric uses the threshold of the first failure, ``alpha / (k - m)``
+    where ``m`` is the number rejected (the step-down stops there). Ties are
+    broken by input order (a stable sort), exactly as ``holm_bonferroni`` does,
+    so two metrics with an identical p-value can receive different step
+    thresholds — that is a genuine property of step-down Holm, not an artefact.
+
+    One subtlety: ``holm_bonferroni`` rejects with ``adjusted_p <= alpha`` (the
+    statsmodels convention) while the audit decides significance with a strict
+    ``p < alpha``. On the measure-zero boundary where a rejected metric's p-value
+    equals its step threshold exactly, we nudge the threshold up by one ULP so
+    the strict comparison still fires — keeping ``p < effective_alpha``
+    equivalent to Holm's rejection for every metric, with no observable effect
+    away from that exact tie.
     """
     p = np.asarray(pvalues, dtype=float)
     k = p.size
@@ -223,10 +308,13 @@ def _holm_step_thresholds(pvalues, rejected, alpha: float) -> list[float]:
     rank[order] = np.arange(k)
     n_rejected = int(sum(rejected))
 
-    thresholds = []
+    effective = []
     for i in range(k):
         if rejected[i]:
-            thresholds.append(float(alpha / (k - rank[i])))
+            threshold = alpha / (k - rank[i])
+            if p[i] >= threshold:  # exact tie: p == threshold, Holm rejects via <=
+                threshold = float(np.nextafter(threshold, np.inf))
+            effective.append(float(threshold))
         else:
-            thresholds.append(float(alpha / (k - n_rejected)))
-    return thresholds
+            effective.append(alpha / (k - n_rejected))
+    return effective

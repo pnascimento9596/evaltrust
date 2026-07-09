@@ -6,7 +6,7 @@ in ``pyproject.toml``.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 
 try:  # tomllib is stdlib on 3.11+; tomli is the backport for 3.10
@@ -29,6 +29,8 @@ class AuditConfig:
     n_resamples: int = 10_000               # bootstrap / permutation resamples
     seed: int = 0                           # RNG seed (reproducibility)
     correction: str = "bonferroni"          # multi-metric correction: bonferroni | holm | none
+    gated_metrics: frozenset = field(default_factory=frozenset)   # metrics that must pass; any failure → suite fails
+    metric_weights: dict = field(default_factory=dict)            # metric → relative weight for overall_level
 
     @classmethod
     def from_dict(cls, data: dict) -> "AuditConfig":
