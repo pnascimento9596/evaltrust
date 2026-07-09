@@ -131,12 +131,23 @@ def test_threshold_is_used_for_single_model_audit(tmp_path):
         {"id": str(i), "scores": {"A": 1 if i < 70 else 0}}
         for i in range(100)]}))
 
-    # With threshold=0.5, should pass (70% > 50%)
+    # With threshold=0.5, model exceeds target (70% > 50%)
     report_low_threshold = audit(str(p), threshold=0.5)
-    assert any("target" in f.title.lower() or "threshold" in f.title.lower()
-               for f in report_low_threshold.findings)
+    low_threshold_findings = [f for f in report_low_threshold.findings
+                              if "target" in f.title.lower() or "threshold" in f.title.lower()]
+    assert low_threshold_findings, "Should have threshold-related finding"
+    assert all(f.status.name in ("PASS", "OK") for f in low_threshold_findings), \
+        f"Model should pass with low threshold, got: {[f.status.name for f in low_threshold_findings]}"
 
-    # With threshold=0.9, should fail (70% < 90%)
+    # With threshold=0.9, model falls short (70% < 90%)
     report_high_threshold = audit(str(p), threshold=0.9)
-    assert any("target" in f.title.lower() or "threshold" in f.title.lower()
-               for f in report_high_threshold.findings)
+    high_threshold_findings = [f for f in report_high_threshold.findings
+                               if "target" in f.title.lower() or "threshold" in f.title.lower()]
+    assert high_threshold_findings, "Should have threshold-related finding"
+    assert any(f.status.name in ("FAIL", "WARN") for f in high_threshold_findings), \
+        f"Model should fail with high threshold, got: {[f.status.name for f in high_threshold_findings]}"
+
+    # Verify the reports actually differ
+    assert report_low_threshold.verdict.level != report_high_threshold.verdict.level or \
+           len(low_threshold_findings) != len(high_threshold_findings), \
+        "Reports should differ based on threshold"
