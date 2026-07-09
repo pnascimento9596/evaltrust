@@ -2,8 +2,14 @@
 
 Most eval untrustworthiness comes from the judge, not the arithmetic. If the file
 includes a human/gold judge alongside the AI judge(s), we treat it as ground truth
-and measure how often each AI judge matches it. A judge that agrees with humans
+and measure how well each AI judge matches it. A judge that agrees with humans
 only 70% of the time can't be trusted to rank models on its own.
+
+For pass/fail judges we measure exact-match **agreement**. For judges that score on
+a continuous scale (a 1–5 rubric, say), exact match is the wrong question — what
+matters for comparing models is whether the judge *ranks* examples like the humans
+do — so we switch to a **Spearman rank correlation**. The finding always names
+which metric was used, so a correlation is never mistaken for an agreement rate.
 
 Include your human labels as a judge named ``gold``/``human``/``reference`` (etc.),
 or name the reference judge explicitly.
@@ -11,12 +17,62 @@ or name the reference judge explicitly.
 
 from __future__ import annotations
 
+import math
+import warnings
+
+from scipy.stats import spearmanr
+
 from ..core.schema import EvalData, Finding, Status
 from .judge_reliability import _judge_names
 
 PILLAR = "Judge Reliability"
 REFERENCE_NAMES = {"gold", "human", "humans", "reference", "ground_truth",
                    "groundtruth", "expert", "label", "truth"}
+
+
+def _use_exact_match(data: EvalData, judges, models) -> bool:
+    """True when calibration should use exact-match agreement, not correlation.
+
+    Agreement applies to binary 0/1 scores and to any non-numeric scores the
+    original ``==`` comparison handled (e.g. ``"pass"``/``"fail"`` an adapter
+    would normally coerce). Correlation is used only when the scores are numeric
+    and range beyond {0, 1}. With no comparable scores at all, exact match is
+    chosen so the no-data case stays silent (returns ``[]``), exactly as before.
+
+    Deliberately local to this module: ``statistical.py::_is_binary`` is private,
+    in another module, and inspects *model* scores; calibration needs the test
+    over *judge* scores. The small duplication is intentional.
+    """
+    numeric: set[float] = set()
+    for ex in data.examples:
+        if not ex.judges:
+            continue
+        for j in judges:
+            js = ex.judges.get(j)
+            if not js:
+                continue
+            for m in models:
+                if m in js:
+                    v = js[m]
+                    if not isinstance(v, (int, float)):   # bool is an int subclass
+                        return True                        # non-numeric -> agreement
+                    numeric.add(float(v))
+    return not numeric or numeric <= {0.0, 1.0}
+
+
+def _spearman(judge_vals: list[float], ref_vals: list[float]) -> float | None:
+    """Spearman rank correlation, or ``None`` when it isn't defined.
+
+    Undefined when there are fewer than two paired points, or when either side is
+    constant (no ranks to correlate). Callers treat ``None`` as "not measurable"
+    rather than reporting a spurious number.
+    """
+    if len(judge_vals) < 2:
+        return None
+    with warnings.catch_warnings():        # a constant input warns, then returns nan
+        warnings.simplefilter("ignore")
+        rho = float(spearmanr(judge_vals, ref_vals).statistic)
+    return None if math.isnan(rho) else rho
 
 
 def audit_judge_calibration(
@@ -29,7 +85,10 @@ def audit_judge_calibration(
     """Return a calibration finding, or [] when there's nothing to calibrate.
 
     Silent (returns []) when there are no judges or no reference judge — the
-    general Judge Reliability check already covers the multi-judge case.
+    general Judge Reliability check already covers the multi-judge case. Binary
+    judge scores are audited by exact-match agreement; continuous scores by a
+    Spearman rank correlation. The ``threshold`` is the pass floor for whichever
+    metric applies — a fraction agreed for binary, a correlation for continuous.
     """
     if not data.has_judges:
         return []
@@ -40,6 +99,22 @@ def audit_judge_calibration(
         return []
 
     others = [j for j in judges if j != ref]
+    if not others:                          # no AI judge to calibrate -> silent, as before
+        return []
+    if _use_exact_match(data, [ref, *others], (model_a, model_b)):
+        return _calibration_exact_match(data, model_a, model_b, threshold, ref, others)
+    return _calibration_correlation(data, model_a, model_b, threshold, ref, others)
+
+
+def _calibration_exact_match(
+    data: EvalData, model_a: str, model_b: str, threshold: float,
+    ref: str, others: list[str],
+) -> list[Finding]:
+    """Exact-match agreement for binary (pass/fail) judge scores.
+
+    This is the original calibration behaviour, unchanged, so binary inputs
+    produce byte-identical findings.
+    """
     accuracies: dict[str, float] = {}
     for j in others:
         matches = total = 0
@@ -84,4 +159,98 @@ def audit_judge_calibration(
         details={"check": "judge_calibration", "reference": ref,
                  "accuracies": accuracies, "worst_judge": worst_judge,
                  "worst_accuracy": worst},
+    )]
+
+
+def _calibration_correlation(
+    data: EvalData, model_a: str, model_b: str, threshold: float,
+    ref: str, others: list[str],
+) -> list[Finding]:
+    """Spearman rank correlation for continuous judge scores.
+
+    Rank correlation asks whether the judge orders examples like the reference,
+    which is the right question for comparing models: a judge that ranks perfectly
+    but is systematically offset still ranks the two models correctly, and here
+    reports a high correlation by design. ``threshold`` is applied as a floor on
+    the correlation, and the finding text names the metric so a rho is never read
+    as an agreement rate.
+    """
+    correlations: dict[str, float] = {}
+    max_points = 0
+    for j in others:
+        judge_vals: list[float] = []
+        ref_vals: list[float] = []
+        for ex in data.examples:
+            if not ex.judges:
+                continue
+            j_scores, ref_scores = ex.judges.get(j), ex.judges.get(ref)
+            if not j_scores or not ref_scores:
+                continue
+            for m in (model_a, model_b):
+                if m in j_scores and m in ref_scores:
+                    judge_vals.append(j_scores[m])
+                    ref_vals.append(ref_scores[m])
+        max_points = max(max_points, len(judge_vals))
+        rho = _spearman(judge_vals, ref_vals)
+        if rho is not None:
+            correlations[j] = rho
+
+    if not correlations:
+        if max_points == 0:
+            # No comparable judge-vs-reference scores at all: nothing to
+            # calibrate, so stay silent exactly as the exact-match path does.
+            return []
+        # There is some comparable data, but no judge has two or more paired
+        # points whose values vary — the two things a rank correlation needs.
+        # One message covers both causes so it can never misstate which applied.
+        return [Finding(
+            pillar=PILLAR,
+            title=f"Judge calibration vs {ref} not measurable",
+            status=Status.SKIP,
+            why=(
+                "Judge scores here are on a continuous scale, so calibration is a "
+                "rank correlation against the reference — but no judge has enough "
+                "varied, paired data to compute one."
+            ),
+            how_detected=(
+                f"No AI judge had two or more comparable {ref}-vs-judge score "
+                "pairs whose values vary across examples (a rank correlation "
+                "needs both)."
+            ),
+            how_to_fix=(
+                f"Add more examples scored by both {ref} and the AI judge(s), on a "
+                "scale whose values vary across examples, so a Spearman rank "
+                "correlation can be computed."
+            ),
+            details={"check": "judge_calibration", "metric": "spearman",
+                     "reference": ref},
+        )]
+
+    worst_judge = min(correlations, key=correlations.get)
+    worst = correlations[worst_judge]
+    good = worst >= threshold
+    per_judge = ", ".join(f"{j} rho={r:.2f}" for j, r in correlations.items())
+
+    return [Finding(
+        pillar=PILLAR,
+        title=(f"Judges rank like {ref}" if good
+               else f"A judge's ranking diverges from {ref}"),
+        status=Status.PASS if good else Status.WARN,
+        why=(
+            "A judge is only trustworthy if it ranks answers like people do. On a "
+            "continuous scale, what matters for comparing two models is that the "
+            "judge orders examples the way the human labels do — a rank "
+            "correlation, not exact agreement — so any ranking built on it holds."
+        ),
+        how_detected=(
+            f"Spearman rank correlation with {ref} (continuous scores, treated as "
+            f"ground truth): {per_judge}."),
+        how_to_fix=(
+            f"The judge(s) rank examples like {ref} does." if good else
+            f"Recalibrate or replace {worst_judge}; its scores correlate with "
+            f"{ref} only rho={worst:.2f} (a rank correlation, not an agreement rate)."
+        ),
+        details={"check": "judge_calibration", "metric": "spearman",
+                 "reference": ref, "correlations": correlations,
+                 "worst_judge": worst_judge, "worst_correlation": worst},
     )]
