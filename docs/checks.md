@@ -125,8 +125,12 @@ measures how often each AI judge agrees with it. A judge that matches humans onl
 labels as a judge named `gold`/`human`/`reference` (etc.), or name the reference
 with `--reference-judge`.
 
-- **PASS** when every AI judge agrees with the reference above the threshold.
-- **WARN** otherwise, naming the worst-calibrated judge and its agreement rate.
+Binary calibration uses `judge_agreement_threshold` (a fraction agreed, default
+`0.8`). Continuous calibration uses `judge_correlation_threshold` (a Spearman rho,
+default `0.8`). The two floors are configured independently.
+
+- **PASS** when every AI judge clears the threshold for its score scale.
+- **WARN** otherwise, naming the worst-calibrated judge and its score.
 
 ## Single model (Score Reliability)
 

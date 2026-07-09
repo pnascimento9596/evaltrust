@@ -6,6 +6,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- **Judge calibration thresholds are independently tunable.** A new
+  `judge_correlation_threshold` config key (default `0.8`) sets the Spearman
+  rank-correlation floor for continuous judge scores, separate from
+  `judge_agreement_threshold` (the fraction-agreed floor for binary judges) — a
+  rank correlation of 0.80 and 80% agreement are not the same bar. Both default to
+  `0.8`, so output is unchanged until you set them apart.
+
 ## [0.6.0] — 2026-07-09
 
 ### Added

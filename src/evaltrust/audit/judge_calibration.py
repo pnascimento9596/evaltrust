@@ -64,10 +64,13 @@ def audit_judge_calibration(
     model_b: str,
     threshold: float = 0.8,
     reference_judge: str | None = None,
+    *,
+    correlation_threshold: float | None = None,
 ) -> list[Finding]:
     """Return a calibration finding, or [] when there's nothing to calibrate.
 
-    ``threshold`` is the pass floor (a fraction agreed, or a correlation).
+    ``correlation_threshold`` is the Spearman floor; when unset, it falls back to
+    the binary agreement ``threshold`` for compatibility.
     """
     if not data.has_judges:
         return []
@@ -82,7 +85,8 @@ def audit_judge_calibration(
         return []
     if _use_exact_match(data, [ref, *others], (model_a, model_b)):
         return _calibration_exact_match(data, model_a, model_b, threshold, ref, others)
-    return _calibration_correlation(data, model_a, model_b, threshold, ref, others)
+    rho_floor = threshold if correlation_threshold is None else correlation_threshold
+    return _calibration_correlation(data, model_a, model_b, rho_floor, ref, others)
 
 
 def _calibration_exact_match(
@@ -138,7 +142,7 @@ def _calibration_exact_match(
 
 
 def _calibration_correlation(
-    data: EvalData, model_a: str, model_b: str, threshold: float,
+    data: EvalData, model_a: str, model_b: str, correlation_threshold: float,
     ref: str, others: list[str],
 ) -> list[Finding]:
     """Spearman rank correlation for continuous judge scores."""
@@ -193,7 +197,7 @@ def _calibration_correlation(
 
     worst_judge = min(correlations, key=correlations.get)
     worst = correlations[worst_judge]
-    good = worst >= threshold
+    good = worst >= correlation_threshold
     per_judge = ", ".join(f"{j} rho={r:.2f}" for j, r in correlations.items())
 
     return [Finding(
