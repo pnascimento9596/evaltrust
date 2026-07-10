@@ -84,7 +84,7 @@ def test_findings_obey_golden_rule():
 
 
 def test_consensus_skips_judge_that_scored_only_one_model():
-    # gpt scored both models; claude scored only model A — should not nan-compare
+    # gpt scored both; claude scored only A — 1 surviving judge is not consensus
     ex = []
     for _ in range(10):
         ex.append({
@@ -94,10 +94,11 @@ def test_consensus_skips_judge_that_scored_only_one_model():
     findings = audit_judge_reliability(make_data(ex), "A", "B")
     consensus = by_check(findings, "judge_consensus")
     # Must not crash, must not silently default via nan
-    assert consensus.status in (Status.PASS, Status.FAIL, Status.WARN)
+    # With len(winners) < 2 guard, one surviving judge → SKIP
+    assert consensus.status is Status.SKIP
     # claude should appear in the skipped note, not as a winner
     assert "claude" not in consensus.details["per_judge_winner"]
-    assert "missing scores" in consensus.how_detected
+    assert "claude" in consensus.how_detected
 
 
 def test_consensus_skips_when_all_judges_scored_only_one_model():
@@ -126,4 +127,15 @@ def test_consensus_partial_skip_details_includes_skipped_judges():
     findings = audit_judge_reliability(make_data(ex), "A", "B")
     consensus = by_check(findings, "judge_consensus")
     assert "skipped_judges" in consensus.details
+    assert consensus.details["skipped_judges"] == ["claude"]
+
+
+def test_consensus_skips_when_only_one_judge_scored_both_models():
+    # gpt scored both; claude scored only A — only 1 winner, not consensus
+    ex = [{"gpt": {"A": 0.0, "B": 1.0}, "claude": {"A": 0.5}} for _ in range(10)]
+    findings = audit_judge_reliability(make_data(ex), "A", "B")
+    consensus = by_check(findings, "judge_consensus")
+    assert consensus.status is Status.SKIP
+    assert "gpt" in consensus.how_detected
+    assert "claude" in consensus.how_detected
     assert consensus.details["skipped_judges"] == ["claude"]

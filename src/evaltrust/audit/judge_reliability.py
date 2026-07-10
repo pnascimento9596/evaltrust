@@ -88,6 +88,25 @@ def _consensus(data, judges, model_a, model_b) -> Finding:
             details={"check": "judge_consensus", "per_judge_winner": {},
                      "unanimous": False, "skipped_judges": skipped_judges},
         )
+    if len(winners) < 2:
+        sole = next(iter(winners.keys()))
+        return Finding(
+            pillar=PILLAR,
+            title="Only one judge scored both models — consensus not assessable",
+            status=Status.SKIP,
+            why=(
+                "A single judge's verdict could be its own bias. Consensus "
+                "requires at least two judges that each scored both models."
+            ),
+            how_detected=(
+                f"{sole} was the only judge with scores for both models"
+                + ("; skipped: " + ", ".join(skipped_judges) if skipped_judges else "")
+                + "."
+            ),
+            how_to_fix="Add a second judge that scores both models.",
+            details={"check": "judge_consensus", "per_judge_winner": dict(winners),
+                     "unanimous": False, "skipped_judges": skipped_judges},
+        )
 
     unique = set(winners.values())
     unanimous = len(unique) == 1
