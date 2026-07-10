@@ -102,6 +102,32 @@ def test_native_nested_collapses_fully_bad_runs_and_judges_to_none():
     assert data.metadata["skipped_rows"] == 0
 
 
+def test_native_nested_tolerates_malformed_runs_and_judges_structures():
+    # Structurally wrong (not just unreadable-value) optional blocks must not
+    # abort the parse: a non-iterable run list, or a runs/judges block that isn't
+    # a dict, is dropped like any other bad optional data. Main scores survive
+    # and structural issues are not counted.
+    raw = {
+        "models": ["A", "B"],
+        "examples": [
+            {"id": "q1", "scores": {"A": 1, "B": 0},
+             "runs": {"A": 5, "B": [1, 1]},          # A's run list isn't iterable
+             "judges": {"human": 7}},                # a judge's value isn't a dict
+            {"id": "q2", "scores": {"A": 0, "B": 1},
+             "runs": [1, 2, 3],                      # runs block isn't a dict
+             "judges": [1, 2]},                      # judges block isn't a dict
+        ],
+    }
+    data = NativeNestedAdapter().parse(raw)           # must not raise
+    assert data.n_examples == 2
+    assert data.examples[0].scores == {"A": 1.0, "B": 0.0}
+    assert data.examples[0].runs == {"B": [1.0, 1.0]}   # A dropped, B kept
+    assert data.examples[0].judges is None              # bad judge value -> None
+    assert data.examples[1].runs is None                # non-dict runs -> None
+    assert data.examples[1].judges is None              # non-dict judges -> None
+    assert data.metadata["skipped_rows"] == 0
+
+
 # ---------------------------------------------------------------------------
 # Generic records: long format (one row per model) and wide format
 # ---------------------------------------------------------------------------

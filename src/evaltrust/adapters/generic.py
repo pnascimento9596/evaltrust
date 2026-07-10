@@ -110,30 +110,34 @@ class GenericRecordsAdapter:
 
 def _coerce_runs(runs):
     """Coerce a model -> run-list mapping. A run list must stay aligned, so if any
-    value in it is unreadable the whole model's runs are dropped. Empty -> None."""
-    if not runs:
+    value in it is unreadable the whole model's runs are dropped. A non-dict block
+    or non-iterable list is dropped too, never raised. Empty -> None."""
+    if not isinstance(runs, dict) or not runs:
         return None
     out = {}
     for m, vs in runs.items():
         try:
             out[str(m)] = [coerce_score(v) for v in vs]
-        except ValueError:
+        except (ValueError, TypeError):   # unreadable value or non-iterable list
             continue
     return out or None
 
 
 def _coerce_judges(judges):
     """Coerce a judge -> {model -> score} mapping, dropping any (judge, model)
-    whose score is unreadable. Empty judges (or empty per-judge maps) -> None."""
-    if not judges:
+    whose score is unreadable. A non-dict block or non-dict per-judge map is
+    dropped too, never raised. Empty judges (or empty per-judge maps) -> None."""
+    if not isinstance(judges, dict) or not judges:
         return None
     out = {}
     for j, mv in judges.items():
+        if not isinstance(mv, dict):
+            continue
         scored = {}
         for m, v in mv.items():
             try:
                 scored[str(m)] = coerce_score(v)
-            except ValueError:
+            except (ValueError, TypeError):
                 continue
         if scored:
             out[str(j)] = scored
