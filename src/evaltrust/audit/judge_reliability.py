@@ -104,7 +104,7 @@ def _consensus(data, judges, model_a, model_b) -> Finding:
         ),
         how_detected=(
             f"Each judge's preferred model: "
-            + ", ".join(f"{j}->{winners[j]}" for j in winners) + (f" (skipped — scored only one model: {chr(123)}{chr(44).join(skipped_judges)}{chr(125)})" if skipped_judges else "") + "."
+            + ", ".join(f"{j}->{winners[j]}" for j in winners) + (f" (skipped — scored only one model: {{', '.join(skipped_judges)}})" if skipped_judges else "") + "."
         ),
         how_to_fix=(
             f"Every judge preferred {winner}; the verdict is judge-independent."
