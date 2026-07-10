@@ -93,6 +93,7 @@ def test_empty_line_registry_preserves_generic_jsonl_load_and_suite(
             "scores": {"A": 0.75},
             "runs": {"A": [1.0, 0.5]},
             "judges": None,
+            "preferences": None,
         }],
         "source_format": "jsonl",
         "metadata": {"skipped_rows": 0},

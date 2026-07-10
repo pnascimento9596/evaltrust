@@ -13,6 +13,18 @@ from ..stats.resampling import bootstrap_ci
 PILLAR = "Pairwise Preference"
 
 
+def _preference_magnitude(cohens_g: float) -> str:
+    """Label Cohen's g using Cohen's conventional 1988 thresholds."""
+    magnitude = abs(cohens_g)
+    if magnitude < 0.05:
+        return "negligible"
+    if magnitude < 0.15:
+        return "small"
+    if magnitude < 0.25:
+        return "medium"
+    return "large"
+
+
 def _skip(reason: str, details: dict | None = None) -> Finding:
     payload = {"check": "preference", "assessed": False}
     payload.update(details or {})
@@ -156,10 +168,13 @@ def audit_preferences(
         seed=seed,
     )
     win_rate_a = wins_a / (wins_a + wins_b)
+    cohens_g = abs(win_rate_a - 0.5)
+    magnitude = _preference_magnitude(cohens_g)
+    meaningful = magnitude in {"medium", "large"}
     effect = Finding(
         pillar=PILLAR,
         title=f"{model_a} won {win_rate_a:.1%} of decisive preferences",
-        status=Status.PASS,
+        status=Status.PASS if meaningful else Status.WARN,
         why=(
             "The p-value says whether the split is distinguishable from chance. "
             "The win rate and interval show its direction and practical size."
@@ -167,13 +182,20 @@ def audit_preferences(
         how_detected=(
             f"{model_a} won {wins_a} of {wins_a + wins_b} decisive examples "
             f"({win_rate_a:.1%}); the {confidence:.0%} bootstrap interval was "
-            f"[{ci_low:.1%}, {ci_high:.1%}]."
+            f"[{ci_low:.1%}, {ci_high:.1%}] (Cohen's g {cohens_g:.3f}, "
+            f"{magnitude})."
         ),
-        how_to_fix="Report the interval with the win rate so its uncertainty stays visible.",
+        how_to_fix=(
+            "Report the interval with the win rate so its uncertainty stays visible."
+            if meaningful else
+            "Gap may be too small to matter. Weigh it against cost and risk."
+        ),
         details={
             "check": "preference_effect",
             **common,
             "win_rate_a": win_rate_a,
+            "cohens_g": cohens_g,
+            "magnitude": magnitude,
             "ci_low": ci_low,
             "ci_high": ci_high,
             "confidence": confidence,

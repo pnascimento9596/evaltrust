@@ -17,7 +17,7 @@ from evaltrust.adapters.common import (
     coerce_score,
     records_to_evaldata,
 )
-from evaltrust.audit.preference import audit_preferences
+from evaltrust.audit.preference import _preference_magnitude, audit_preferences
 from evaltrust.audit.runner import run_audit
 from evaltrust.audit.suite import audit_suite
 from evaltrust.config import AuditConfig
@@ -31,7 +31,8 @@ FAST_CONFIG = AuditConfig(n_resamples=500, seed=7)
 
 
 def _data(votes, models=("A", "B"), scores=None):
-    scores = scores or [{} for _ in votes]
+    if scores is None:
+        scores = [{} for _ in votes]
     return EvalData(
         models=list(models),
         examples=[
@@ -49,6 +50,11 @@ def _finding(findings, check):
 def test_data_helper_rejects_mismatched_scores_and_votes():
     with pytest.raises(ValueError, match=r"zip\(\) argument 2 is longer"):
         _data([{"judge": "A"}, {"judge": "B"}], scores=[{}])
+
+
+def test_data_helper_preserves_explicit_empty_scores():
+    with pytest.raises(ValueError, match=r"zip\(\) argument 2 is longer"):
+        _data([{"judge": "A"}], scores=[])
 
 
 def test_schema_reports_preference_evidence():
@@ -179,6 +185,39 @@ def test_significance_matches_scipy_exact_binomial_reference():
     ).details
     expected = float(binomtest(2, 10, 0.5, alternative="two-sided").pvalue)
     assert details["p_value"] == expected
+
+
+def test_significant_but_negligible_preference_effect_warns():
+    data = _data([{"judge": "A"}] * 53 + [{"judge": "B"}] * 47)
+    findings = audit_preferences(
+        data,
+        "A",
+        "B",
+        n_resamples=50,
+        significant=True,
+    )
+
+    assert _finding(findings, "preference_significance").status is Status.PASS
+    effect = _finding(findings, "preference_effect")
+    assert effect.status is Status.WARN
+    assert effect.details["cohens_g"] == pytest.approx(0.03)
+    assert effect.details["magnitude"] == "negligible"
+    assert "too small to matter" in effect.how_to_fix
+
+
+@pytest.mark.parametrize(
+    ("cohens_g", "expected"),
+    [
+        (0.049, "negligible"),
+        (0.05, "small"),
+        (0.149, "small"),
+        (0.15, "medium"),
+        (0.249, "medium"),
+        (0.25, "large"),
+    ],
+)
+def test_preference_magnitude_boundaries(cohens_g, expected):
+    assert _preference_magnitude(cohens_g) == expected
 
 
 def test_preference_bootstrap_ci_is_seeded_and_deterministic():
