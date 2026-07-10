@@ -6,6 +6,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- **Line-format adapters.** JSONL ingest can detect specific row formats before
+  falling through to the existing generic record path; lm-eval sample logs are
+  the first supported format.
+- **Pairwise preference judgments:** audit judge-level A/B/tie votes with an exact sign test and seeded win-rate interval.
+
 - **Judge calibration thresholds are independently tunable.** A new
   `judge_correlation_threshold` config key (default `0.8`) sets the Spearman
   rank-correlation floor for continuous judge scores, separate from
@@ -14,6 +19,28 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `0.8`, so output is unchanged until you set them apart.
 
 ### Fixed
+- **Judge consensus no longer nan-compares when a judge scored only one model.**
+  `_consensus()` called `np.mean([])` → `nan` when a judge had results for only
+  one of the two models; `nan >= nan` is `False`, silently defaulting the winner
+  to `model_a`. Judges missing scores for either model are now skipped and listed
+  in the finding's `how_detected` and `details.skipped_judges`. When all judges
+  are skipped the finding returns `Status.SKIP` instead of a spurious disagree.
+  When only one judge survives the skip the finding also returns `Status.SKIP`
+  (one judge is not consensus). Fixes #53.
+
+- **Saturation check no longer false-warns on continuous or rubric scales.**
+  `_saturation()` previously divided the top model mean by the highest *observed*
+  score, so a top mean of 4.0 on a 0–5 rubric (observed max 4.2) read as 95% of
+  ceiling and triggered a spurious WARN. A new `score_ceiling` config key (default
+  `None`) lets teams declare the true upper bound; when set, it is used as the
+  denominator instead of the observed max. The default path is unchanged.
+
+
+- **Config typos are no longer silently ignored.** An unknown key in the config
+  (`alpah`, or `equivalence-margin` with a dash) previously reverted the
+  intended setting to its default with no signal. An explicit `--config` file
+  now fails with the unknown key named and a did-you-mean suggestion; a
+  discovered `.evaltrust.toml` / `[tool.evaltrust]` warns and ignores it.
 
 - **Two-file pairing no longer hides dropped data.** Pairing two single-model
   files now carries both files' `skipped_rows` counts forward and counts every
