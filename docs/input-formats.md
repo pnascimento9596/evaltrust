@@ -148,8 +148,9 @@ without a `metric` column is treated as a single metric, exactly as before. See
 
 ## Single-model tools (two-file comparison)
 
-Some tools - DeepEval, LangSmith, OpenEvals, Inspect - evaluate one model per run,
-so a single export contains only one model. Run each model, then pass both files:
+Some tools - DeepEval, LangSmith, Ragas, OpenEvals, Inspect - evaluate one model per
+run, so a single export contains only one model. Run each model, then pass both
+files:
 
 ```bash
 evaltrust audit gpt4_run.json claude_run.json

@@ -55,6 +55,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   experiment/model per file, scored from each run's `feedback_stats.<key>.avg`
   (averaged across metrics). One model per run; compare two runs.
 
+- **Ragas adapter:** read a Ragas result export (`EvaluationResult.to_pandas()`)
+  directly, scored from its per-example metric columns (`faithfulness`,
+  `answer_relevancy`, `context_precision`, ...) averaged per row. One RAG
+  pipeline per run; compare two runs. Metrics are currently averaged into a
+  single score rather than split into a per-metric suite — see
+  [#9](https://github.com/k-dickinson/evaltrust/issues/9) for the follow-up.
+
 ## [0.6.0] — 2026-07-09
 
 ### Added

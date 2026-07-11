@@ -608,3 +608,64 @@ def test_no_earlier_adapter_claims_a_langsmith_export():
 
 def test_detect_routes_langsmith():
     assert detect_adapter(LANGSMITH).source_format == "langsmith"
+
+
+# ---------------------------------------------------------------------------
+# Ragas result export (one RAG pipeline per run — paired via two files)
+# ---------------------------------------------------------------------------
+
+from evaltrust.adapters.ragas import RagasAdapter
+
+RAGAS = [
+    {"user_input": "What is the capital of France?",
+     "retrieved_contexts": ["Paris is the capital of France."],
+     "response": "Paris", "reference": "Paris",
+     "faithfulness": 1.0, "answer_relevancy": 0.95, "context_precision": 0.9},
+    {"user_input": "What is the capital of Germany?",
+     "retrieved_contexts": ["Berlin is a city in Germany."],
+     "response": "Munich", "reference": "Berlin",
+     "faithfulness": 0.2, "answer_relevancy": 0.6, "context_precision": 0.7},
+]
+
+
+def test_ragas_detects_and_parses_averaging_multiple_metrics():
+    a = RagasAdapter()
+    assert a.detect(RAGAS)
+    data = a.parse(RAGAS)
+    assert data.n_examples == 2
+    (model,) = data.models
+    assert data.examples[0].scores[model] == pytest.approx((1.0 + 0.95 + 0.9) / 3)
+    assert data.examples[1].scores[model] == pytest.approx((0.2 + 0.6 + 0.7) / 3)
+
+
+def test_ragas_skips_and_counts_a_row_with_no_usable_metric_score():
+    raw = RAGAS + [{"user_input": "no metrics here", "response": "?"}]
+    data = RagasAdapter().parse(raw)
+    assert data.n_examples == 2
+    assert data.metadata["skipped_rows"] == 1
+
+
+def test_ragas_raises_when_no_row_has_a_usable_metric_score():
+    raw = [{"user_input": "no metrics here", "response": "?"}]
+    with pytest.raises(ValueError):
+        RagasAdapter().parse(raw)
+
+
+def test_ragas_does_not_false_positive_on_other_fixtures():
+    a = RagasAdapter()
+    for other in (PROMPTFOO, NATIVE, LONG, WIDE, DEEPEVAL_SNAKE, DEEPEVAL_CAMEL,
+                  OPENEVALS_SAMPLE, INSPECT, LANGSMITH):
+        assert not a.detect(other), other
+
+
+def test_no_earlier_adapter_claims_a_ragas_export():
+    assert not PromptfooAdapter().detect(RAGAS)
+    assert not DeepEvalAdapter().detect(RAGAS)
+    assert not OpenEvalsAdapter().detect(RAGAS)
+    assert not InspectAdapter().detect(RAGAS)
+    assert not LangSmithAdapter().detect(RAGAS)
+    assert not NativeNestedAdapter().detect(RAGAS)
+
+
+def test_detect_routes_ragas():
+    assert detect_adapter(RAGAS).source_format == "ragas"

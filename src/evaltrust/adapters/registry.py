@@ -16,6 +16,7 @@ from .inspect_ai import InspectAdapter
 from .langsmith import LangSmithAdapter
 from .openevals import OpenEvalsAdapter
 from .promptfoo import PromptfooAdapter
+from .ragas import RagasAdapter
 
 
 class Adapter(Protocol):
@@ -38,6 +39,7 @@ REGISTRY: list[Adapter] = [
     OpenEvalsAdapter(),
     InspectAdapter(),
     LangSmithAdapter(),
+    RagasAdapter(),
     NativeNestedAdapter(),
     GenericRecordsAdapter(),
 ]
