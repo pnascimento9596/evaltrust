@@ -19,6 +19,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `0.8`, so output is unchanged until you set them apart.
 
 ### Fixed
+- **`_err` now writes to stderr, not stdout (#51).** `Console(stderr=False)`
+  caused all CLI error messages (load failures, config errors, unrecognised
+  format, non-zero exits) to pollute stdout — corrupting `--json` output and
+  hiding failures from anything scraping stderr. Fixed to `Console(stderr=True)`.
+  Three CLI tests updated to assert on `result.stderr` instead of `result.stdout`.
 - **Judge consensus no longer nan-compares when a judge scored only one model.**
   `_consensus()` called `np.mean([])` → `nan` when a judge had results for only
   one of the two models; `nan >= nan` is `False`, silently defaulting the winner
