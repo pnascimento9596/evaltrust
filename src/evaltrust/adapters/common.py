@@ -14,22 +14,31 @@ import numpy as np
 from ..core.schema import EvalData, Example, Preference
 
 # Alias tables shared by the structural adapters. Lower-cased on lookup.
-ID_KEYS = ("id", "example_id", "test_id", "case_id", "testidx", "test_idx",
-           "index", "idx", "input", "question", "prompt", "test", "query")
+ID_KEYS = ("id", "example_id", "test_id", "case_id", "sample_id", "item_id",
+           "testidx", "test_idx", "index", "idx", "input", "question",
+           "prompt", "test", "query")
 MODEL_KEYS = ("model", "provider", "system", "variant", "candidate", "engine",
-              "providerid", "provider_id", "model_name", "label", "name")
+              "providerid", "provider_id", "model_name", "system_name",
+              "hypothesis", "label", "name")
 SCORE_KEYS = ("score", "pass", "passed", "success", "correct", "result",
-              "value", "metric_score", "rating", "grade", "reward")
+              "value", "metric_score", "rating", "grade", "reward",
+              "accuracy", "pass_rate")
 JUDGE_KEYS = ("judge", "evaluator", "grader", "rater", "judge_model")
 PREFERENCE_KEYS = ("preference", "winner")
 METRIC_KEYS = ("metric", "metric_name", "criterion", "dimension", "check_name",
-               "aspect")
+               "aspect", "task", "skill")
 
 DEFAULT_METRIC = "score"
 DEFAULT_PREFERENCE_JUDGE = "default"
 
-_TRUE = {"pass", "passed", "true", "yes", "correct", "success", "y", "t", "1", "win"}
-_FALSE = {"fail", "failed", "false", "no", "incorrect", "failure", "n", "f", "0", "loss"}
+_TRUE = {
+    "pass", "passed", "true", "yes", "correct", "success", "y", "t", "1",
+    "win", "accept", "positive", "good", "won",
+}
+_FALSE = {
+    "fail", "failed", "false", "no", "incorrect", "failure", "n", "f", "0",
+    "loss", "reject", "negative", "bad", "lost",
+}
 
 
 @dataclass(frozen=True)
@@ -70,6 +79,11 @@ def coerce_score(raw) -> float:
         return float(raw)
     if isinstance(raw, str):
         s = raw.strip().lower()
+        if s.endswith("%"):
+            try:
+                return float(s[:-1].strip()) / 100
+            except ValueError:
+                pass
         try:
             return float(s)
         except ValueError:

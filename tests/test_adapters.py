@@ -153,6 +153,19 @@ def test_generic_long_records_parse():
     assert data.n_examples == 2
 
 
+def test_generic_long_records_parse_common_aliases():
+    raw = [
+        {"sample_id": "q1", "system_name": "gpt", "accuracy": "85%", "skill": "math"},
+        {"sample_id": "q1", "system_name": "claude", "accuracy": "good", "skill": "math"},
+    ]
+
+    data = GenericRecordsAdapter().parse(raw)
+
+    assert data.models == ["gpt", "claude"]
+    assert data.examples[0].id == "q1"
+    assert data.examples[0].scores == {"gpt": 0.85, "claude": 1.0}
+
+
 def test_generic_wide_records_parse():
     data = GenericRecordsAdapter().parse(WIDE)
     assert set(data.models) == {"gpt", "claude"}

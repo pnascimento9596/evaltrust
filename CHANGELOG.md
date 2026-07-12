@@ -57,6 +57,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Generic adapter aliases:** recognize common real-world column names like
+  `sample_id`, `item_id`, `system_name`, `hypothesis`, `accuracy`,
+  `pass_rate`, `task`, and `skill`; parse percent-style scores such as `85%`;
+  accept additional unambiguous pass/fail words (`accept`/`reject`,
+  `positive`/`negative`, `good`/`bad`, `won`/`lost`); and list available model
+  names when explicit comparison models do not match the data.
+
 - **LangSmith adapter:** read a LangSmith run export directly — one
   experiment/model per file, scored from each run's `feedback_stats.<key>.avg`
   (averaged across metrics). One model per run; compare two runs.

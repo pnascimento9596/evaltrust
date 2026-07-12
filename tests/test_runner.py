@@ -1,5 +1,7 @@
 """Tests for the audit runner that wires every check together."""
 
+import pytest
+
 from evaltrust.audit.runner import run_audit
 from evaltrust.audit.verdict import VerdictLevel
 from evaltrust.core.schema import EvalData, Example
@@ -67,6 +69,13 @@ def test_explicit_models_are_respected():
     data = make_data({"A": [0] * 30, "B": [1] * 30, "C": [1] * 30}, 30)
     report = run_audit(data, model_a="A", model_b="C")
     assert {report.model_a, report.model_b} == {"A", "C"}
+
+
+def test_missing_explicit_model_error_lists_available_models():
+    data = make_data({"A": [0] * 30, "B": [1] * 30}, 30)
+
+    with pytest.raises(ValueError, match="Available models: 'A', 'B'"):
+        run_audit(data, model_a="typo", model_b="B")
 
 
 def test_is_deterministic():
