@@ -1,0 +1,8 @@
+cff-version: 1.2.0
+abstract: "An auditor for LLM evaluations."
+message: "If you use this software, please cite it as below."
+title: EvalTrust
+authors:
+  - name: "EvalTrust contributors"
+repository-code: "https://github.com/k-dickinson/evaltrust"
+version: 0.6.0
