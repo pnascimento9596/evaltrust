@@ -440,7 +440,7 @@ def test_bootstrap_ci_clustered_brackets_mean():
 def test_bootstrap_ci_clustered_excludes_zero_for_clear_signal():
     rng = np.random.default_rng(7)
     clusters = [rng.normal(1.0, 0.2, size=5) for _ in range(30)]
-    lo, hi = bootstrap_ci_clustered(clusters, confidence=0.95, n_resamples=5000, seed=0)
+    lo, _hi = bootstrap_ci_clustered(clusters, confidence=0.95, n_resamples=5000, seed=0)
     assert lo > 0.0
 
 

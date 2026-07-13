@@ -66,6 +66,12 @@ def audit_statistical_validity(
         if not clustered
         else ""
     )
+    binary_cluster_note = (
+        " (McNemar's test does not yet use cluster-aware resampling; "
+        "examples are treated as independent for this test)"
+        if clustered
+        else cluster_note
+    )
 
     # --- significance ---
     if binary:
@@ -74,7 +80,7 @@ def audit_statistical_validity(
         test_name = "McNemar's exact test"
         test_detail = (f"{b_only + a_only} discordant pairs "
                        f"({b_only} for {leader}, {a_only} for {trailer})"
-                       + cluster_note)
+                       + binary_cluster_note)
     elif clustered:
         clusters = data.cluster_groups(leader, trailer)
         p = permutation_test_clustered(clusters, n_resamples=n_resamples, seed=seed)
@@ -161,14 +167,16 @@ def _decision(outcome, p, alpha, test_name, test_detail, lo, hi, confidence,
         status = Status.WARN
         how = (f"The gap was not significant (p = {p:.4f}) and the "
                f"{round((1 - 2 * alpha) * 100)}% interval falls within "
-               f"+/-{margin}, so any real difference is smaller than that margin.")
+               f"+/-{margin}, so any real difference is smaller than that margin. "
+               f"{test_detail}.")
         fix = "Treat them as equal on quality. Decide on cost or speed."
     else:  # inconclusive
         title = f"Improvement of {leader} over {trailer} is inconclusive"
         status = Status.FAIL
         how = (f"{cap} gave p = {p:.4f} (not significant), and "
                f"the interval {ci} is too wide to rule out a real difference. "
-               "That's missing data, not proof the two are equal.")
+               f"That's missing data, not proof the two are equal. "
+               f"{test_detail}.")
         fix = "Don't call a winner yet. Collect more examples first."
 
     return Finding(

@@ -122,7 +122,7 @@ class EvalData:
         buckets: dict[str, list[float]] = defaultdict(list)
         for ex in self.examples:
             if model_a in ex.scores and model_b in ex.scores:
-                key = ex.group_id if ex.group_id is not None else ex.id
+                key = ("g", ex.group_id) if ex.group_id is not None else ("i", ex.id)
                 buckets[key].append(ex.scores[model_b] - ex.scores[model_a])
         return [np.array(v, dtype=float) for _, v in sorted(buckets.items())]
 
