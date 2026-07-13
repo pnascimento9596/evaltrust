@@ -22,6 +22,11 @@ from evaltrust.adapters.common import Record, coerce_score, records_to_evaldata
     ("true", 1.0), ("false", 0.0), ("yes", 1.0), ("no", 0.0),
     ("correct", 1.0), ("incorrect", 0.0),
     ("win", 1.0), ("loss", 0.0),
+    ("accept", 1.0), ("reject", 0.0),
+    ("positive", 1.0), ("negative", 0.0),
+    ("good", 1.0), ("bad", 0.0),
+    ("won", 1.0), ("lost", 0.0),
+    ("85%", 0.85), ("100%", 1.0), ("0%", 0.0),
 ])
 def test_coerce_score_normalises_common_spellings(raw, expected):
     assert coerce_score(raw) == pytest.approx(expected)
@@ -30,6 +35,11 @@ def test_coerce_score_normalises_common_spellings(raw, expected):
 def test_coerce_score_rejects_nonsense():
     with pytest.raises(ValueError):
         coerce_score("banana")
+
+
+def test_coerce_score_rejects_bare_percent():
+    with pytest.raises(ValueError):
+        coerce_score("%")
 
 
 def test_coerce_score_rejects_none():

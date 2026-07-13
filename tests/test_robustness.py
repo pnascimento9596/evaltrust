@@ -41,7 +41,7 @@ def test_generic_json_with_bad_score_is_skipped(tmp_path):
 
 
 def test_audit_reports_skipped_rows_as_a_finding(tmp_path):
-    csv_text = "id,model,score\nq1,A,1\nq1,B,0\nq2,A,bad\nq2,B,1\nq3,A,0\nq3,B,1\n"
+    csv_text = "id,model,score\nq1,A,1\nq1,B,0\nq2,A,banana\nq2,B,1\nq3,A,0\nq3,B,1\n"
     data = load(write(tmp_path, "x.csv", csv_text))
     report = run_audit(data)
     dq = [f for f in report.findings if f.pillar == "Data Quality"]
