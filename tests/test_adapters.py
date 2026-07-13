@@ -444,10 +444,10 @@ def test_inspect_numeric_and_boolean_values():
     assert got == [0.75, 1.0, 1.0]
 
 
-def test_inspect_multiple_scorers_use_the_first_like_openevals():
-    # A dedicated adapter yields a single-metric EvalData (the suite fan-out is
-    # only for the generic record path), so, as with the OpenEvals adapter, the
-    # first scorer becomes the audited metric.
+def test_inspect_multiple_scorers_use_the_first_on_the_single_audit_path():
+    # On the single-audit path, parse() yields a single-metric EvalData -- the
+    # first scorer -- as with the OpenEvals adapter. (The suite path fans every
+    # scorer out into its own metric; see test_load_suite_inspect_multi_scorer.)
     raw = {"eval": {"eval_id": "e", "task": "t", "model": "m"},
            "samples": [
                {"id": "a", "scores": {"match": {"value": "C"},
