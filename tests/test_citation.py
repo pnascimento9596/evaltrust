@@ -1,8 +1,12 @@
 import re
 import shutil
 import subprocess
-import tomllib
 from pathlib import Path
+
+try:
+    import tomllib  # Python 3.11+
+except ModuleNotFoundError:  # 3.10 fallback, tomli is already a runtime dep
+    import tomli as tomllib  # type: ignore[import-not-found]
 
 import pytest
 
