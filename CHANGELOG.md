@@ -5,6 +5,11 @@ All notable changes to this project are documented here. The format is based on
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- **Cluster-aware TOST equivalence interval.** The equivalence (TOST) CI now
+  routes through `bootstrap_ci_clustered` when a `group_id` is present, matching
+  the variance estimator used for the significance CI. Previously the TOST interval
+  used the independence-assuming `bootstrap_ci` even on clustered data, which could
+  declare equivalence over-optimistically.
 
 - **Per-slice / subgroup comparison (`--slice-by`).** The audit can now break
   the two-model comparison down by an optional per-example attribute (category,

@@ -106,8 +106,17 @@ def audit_statistical_validity(
                               n_resamples=n_resamples, seed=seed)
 
     # --- equivalence (TOST): (1 - 2*alpha) CI on the signed gap inside the margin ---
-    eq_lo, eq_hi = bootstrap_ci(raw, confidence=1 - 2 * alpha,
-                                n_resamples=n_resamples, seed=seed)
+    # Route through bootstrap_ci_clustered when clusters are present so the
+    # "statistically equivalent" verdict uses the same variance estimator as
+    # the significance CI — plain bootstrap_ci would assume independence and
+    # produce an interval that is too narrow on clustered data (TOST over-optimism).
+    if clustered and not binary:
+        eq_lo, eq_hi = bootstrap_ci_clustered(
+            clusters, confidence=1 - 2 * alpha, n_resamples=n_resamples, seed=seed
+        )
+    else:
+        eq_lo, eq_hi = bootstrap_ci(raw, confidence=1 - 2 * alpha,
+                                    n_resamples=n_resamples, seed=seed)
     equivalent = eq_lo > -equivalence_margin and eq_hi < equivalence_margin
 
     if significant:
