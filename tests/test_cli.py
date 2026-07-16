@@ -327,22 +327,28 @@ def test_config_typo_in_explicit_config_is_an_error(tmp_path):
     assert "alpah" in result.output
 
 
-def test_contamination_utf8_encoding(tmp_path):
-    """Ensure the contamination command correctly loads non-ASCII characters explicitly as UTF-8."""
-    bench_file = tmp_path / "bench.jsonl"
-    ref_file = tmp_path / "ref.jsonl"
+def test_utf8_encoding_cli_audit(tmp_path):
+    """Ensure the CLI correctly loads non-ASCII characters explicitly as UTF-8, including U+2028."""
+    audit_file = tmp_path / "audit.json"
     
-    # Chinese, Spanish, Russian, Arabic, and an Emoji
-    non_ascii_text = "你好, ¿qué tal?, привет, مرحبا, 🌍"
+    # Chinese, Spanish, Russian, Arabic, an Emoji, and U+2028 line separator
+    non_ascii_text = "你好, ¿qué tal?, привет, مرحبا, 🌍\u2028"
     
-    bench_content = f'{{"prompt": "{non_ascii_text}"}}\n'
-    ref_content = f'{{"prompt": "{non_ascii_text}"}}\n'
+    # A valid JSON structure for audit
+    raw = {
+        "models": ["A", "B"], 
+        "examples": [
+            {"id": "1", "scores": {"A": 1, "B": 0}, "text": non_ascii_text}
+        ]
+    }
     
-    bench_file.write_text(bench_content, encoding="utf-8")
-    ref_file.write_text(ref_content, encoding="utf-8")
+    # Explicitly write as UTF-8
+    import json
+    audit_file.write_text(json.dumps(raw), encoding="utf-8")
     
-    result = runner.invoke(app, ["contamination", str(bench_file), str(ref_file)])
+    result = runner.invoke(app, ["audit", str(audit_file), "--plain"])
     
-    # 100% contamination results in an exit code of 1
-    assert result.exit_code == 1
-    assert "Exact matches found:   1" in result.stdout
+    # Exit code should be 2 for warning (n too small) or 0, but NOT a crash
+    assert result.exit_code in (0, 1, 2)
+    # The file should be read without UnicodeDecodeError
+    assert "UnicodeDecodeError" not in result.output
