@@ -6,6 +6,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Friendly enum string representations.** `Status` and `VerdictLevel` now render their friendly values when converted with `str(...)`.
+
 - **lm-eval model names from sibling results files.** When a `results_*.json`
   sits next to a samples log, the adapter uses its top-level `model_name`
   instead of inferring the name from the samples filename.
@@ -288,7 +291,8 @@ Initial release.
 - `--strict` flag to fail CI on a Low-Confidence verdict.
 - Deterministic, seeded resampling so audits are reproducible.
 
-[Unreleased]: https://github.com/k-dickinson/evaltrust/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/k-dickinson/evaltrust/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/k-dickinson/evaltrust/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/k-dickinson/evaltrust/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/k-dickinson/evaltrust/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/k-dickinson/evaltrust/compare/v0.2.0...v0.3.0
