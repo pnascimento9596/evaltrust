@@ -100,10 +100,13 @@ def audit_slices(
     """Compare ``model_a`` vs ``model_b`` per slice of ``slice_by``.
 
     Returns a single :class:`Finding` summarising the per-slice picture. Each
-    slice's significance is tested at ``alpha / k`` (Bonferroni across ``k``
-    slices) and flagged as a regression when its direction disagrees with the
-    overall comparison. If ``overall_mean_diff`` is not supplied it is computed
-    from the full paired sample.
+    slice's significance is tested at ``alpha / k`` (Bonferroni across the
+    tested ``k`` slices) and flagged as a regression only when the slice is
+    *significantly opposite* to the overall direction, so an underpowered
+    slice never trips the flag (it still appears in ``details.slices``). If
+    ``overall_mean_diff`` is not supplied it is computed from the full paired
+    sample. Each slice's permutation test uses ``seed + i`` so Monte-Carlo
+    error is not correlated across slices.
     """
     groups = _slice_examples(data, slice_by, model_a, model_b)
 
@@ -168,9 +171,11 @@ def audit_slices(
 
     slice_details = []
     regressions: list[str] = []
-    for value, examples in testable:
+    # Offset the permutation seed per slice so Monte-Carlo error is not
+    # correlated across slices (each slice draws an independent stream).
+    for i, (value, examples) in enumerate(testable):
         p, mean_diff = _slice_pvalue(examples, model_a, model_b,
-                                     n_resamples=n_resamples, seed=seed)
+                                     n_resamples=n_resamples, seed=seed + i)
         significant = p < corrected_alpha
         slice_sign = _sign(mean_diff)
         regresses = (
@@ -198,7 +203,9 @@ def audit_slices(
         listed = ", ".join(repr(v) for v in regressions)
         how = (f"With Bonferroni across {k} tested slices (alpha/k = "
                f"{corrected_alpha:.4f}), slices {listed} are significant in the "
-               "opposite direction to the overall comparison.")
+               "opposite direction to the overall comparison. A slice is only "
+               "flagged when it is significantly opposite, so underpowered "
+               "slices are not counted as regressions.")
         fix = ("Investigate the flagged slices before shipping: the aggregate "
                "verdict hides a regression on that subset.")
     else:
@@ -206,7 +213,9 @@ def audit_slices(
         title = "No slice regresses against the overall result"
         how = (f"Compared {k} slices at Bonferroni-corrected alpha/k = "
                f"{corrected_alpha:.4f}; none was significant in a direction "
-               "opposite to the overall comparison.")
+               "opposite to the overall comparison. A slice is only flagged "
+               "when it is significantly opposite, so underpowered slices are "
+               "not counted as regressions.")
         fix = "The overall verdict holds across the reported slices."
 
     return [Finding(

@@ -156,6 +156,29 @@ def test_run_audit_without_slice_by_does_not_add_slice_finding():
                    for f in report.findings)
 
 
+def test_permutation_seed_is_offset_per_slice():
+    # Two continuous slices with the same difference distribution: with a
+    # shared seed the permutation p-values would be identical (correlated
+    # Monte-Carlo error). Under the per-slice seed offset each slice draws an
+    # independent stream, so the p-values differ.
+    import numpy as np
+    rng = np.random.default_rng(0)
+    diffs_shared = rng.normal(0.1, 0.5, size=40)  # identical differences
+    examples = []
+    for i, d in enumerate(diffs_shared):
+        examples.append(Example(f"a{i}", {"A": 0.0, "B": float(d)},
+                                attributes={"g": "one"}))
+    for i, d in enumerate(diffs_shared):
+        examples.append(Example(f"b{i}", {"A": 0.0, "B": float(d)},
+                                attributes={"g": "two"}))
+    data = _data(examples)
+    (f,) = audit_slices(data, "A", "B", slice_by="g", seed=0)
+    slices = {s["value"]: s for s in f.details["slices"] if s["assessed"]}
+    # With the per-slice offset the two identically-distributed slices no
+    # longer produce byte-identical p-values from the permutation test.
+    assert slices["one"]["p_value"] != slices["two"]["p_value"]
+
+
 def test_native_adapter_reads_attributes_field():
     from evaltrust.adapters.generic import NativeNestedAdapter
     raw = {
