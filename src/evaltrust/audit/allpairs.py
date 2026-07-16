@@ -253,7 +253,7 @@ def _skip(
             "method": method,
             "alpha": float(alpha),
             "k": 0,
-            "n_pairs_total": int(len(pairs)),
+            "n_pairs_total": len(pairs),
             "n_separable": 0,
             "pairs": pairs,
         },

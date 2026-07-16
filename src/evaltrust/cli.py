@@ -153,7 +153,11 @@ def audit(
     try:
         if len(results) == 2:
             data = load_comparison(results, label_a=model_a, label_b=model_b)
-            report = run_audit(data, config=cfg, slice_by=slice_by)
+            # Two input files already define one pair. Keep all-pairs scoped to
+            # a single file that declares the model family.
+            report = run_audit(
+                data, config=replace(cfg, all_pairs=False),
+                slice_by=slice_by)
         else:
             suite = load_suite(results[0])
             if len(suite) > 1:

@@ -295,6 +295,20 @@ def test_two_file_comparison(tmp_path):
     assert "gpt" in result.stdout and "claude" in result.stdout
 
 
+def test_two_file_comparison_does_not_run_all_pairs(tmp_path):
+    a = single_model_file(tmp_path, "gpt.json", "gpt", 200, 0.60)
+    b = single_model_file(tmp_path, "claude.json", "claude", 200, 0.90)
+    default = runner.invoke(app, ["audit", a, b, "--json"])
+    policy = tmp_path / "all-pairs.toml"
+    policy.write_text("all_pairs = true\n")
+
+    for override in (["--all-pairs"], ["--config", str(policy)]):
+        enabled = runner.invoke(app, ["audit", a, b, *override, "--json"])
+        assert default.exit_code == enabled.exit_code == 0
+        assert enabled.stdout == default.stdout
+        assert "all_pairs" not in _checks(json.loads(enabled.stdout))
+
+
 def test_two_multi_model_files_error_helpfully(tmp_path):
     raw = {"models": ["A", "B"], "examples": [{"id": "1", "scores": {"A": 1, "B": 0}}]}
     f = write(tmp_path, "multi.json", raw)
