@@ -371,9 +371,10 @@ def test_clustered_ci_same_sign_and_wider_than_unclustered():
     examples_unclustered = []
     i = 0
     for c in range(10):
+        cluster_effect = 0.5 if c % 2 == 0 else -0.5
         for _ in range(5):
             a = float(rng.normal(0.0, 0.5))
-            b = float(rng.normal(0.4, 0.5))
+            b = a + 0.4 + cluster_effect + float(rng.normal(0.0, 0.05))
             examples_clustered.append(
                 Example(id=str(i), scores={"A": a, "B": b}, group_id=f"g{c}")
             )

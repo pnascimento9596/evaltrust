@@ -53,8 +53,8 @@ class Example:
     runs: dict[str, list[float]] | None = None
     judges: dict[str, dict[str, float]] | None = None
     preferences: dict[str, str | Preference] | None = None
-    group_id: str | None = None
     attributes: dict[str, str] | None = None
+    group_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -119,7 +119,7 @@ class EvalData:
         """
         from collections import defaultdict
 
-        buckets: dict[str, list[float]] = defaultdict(list)
+        buckets: dict[tuple[str, str], list[float]] = defaultdict(list)
         for ex in self.examples:
             if model_a in ex.scores and model_b in ex.scores:
                 key = ("g", ex.group_id) if ex.group_id is not None else ("i", ex.id)
