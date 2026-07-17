@@ -68,17 +68,20 @@ def test_all_pairs_is_additive_and_default_output_is_byte_identical():
         config=AuditConfig(all_pairs=True, n_resamples=99, seed=7),
     )
 
+    additive = {"all_pairs", "rank_stability"}
     assert not any(
-        finding.details.get("check") == "all_pairs" for finding in off.findings)
+        finding.details.get("check") in additive for finding in off.findings)
     assert any(
         finding.details.get("check") == "all_pairs" for finding in on.findings)
+    assert any(
+        finding.details.get("check") == "rank_stability" for finding in on.findings)
     assert off.verdict.to_dict() == on.verdict.to_dict()
 
     off_payload = off.to_dict()
     on_payload = on.to_dict()
     on_payload["findings"] = [
         finding for finding in on_payload["findings"]
-        if finding["details"].get("check") != "all_pairs"
+        if finding["details"].get("check") not in additive
     ]
     off_bytes = json.dumps(
         off_payload, sort_keys=True, separators=(",", ":")).encode()

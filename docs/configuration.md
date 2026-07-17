@@ -61,9 +61,13 @@ of metrics. Choose the method with `correction` (or `--correction` on the CLI):
 
 When `all_pairs = true` or `--all-pairs` is enabled for a single comparison, the
 same method corrects across the model pairs that have shared scores. Pairs without
-shared scores are listed but do not make the tested family larger. A multi-metric
-suite still compares one selected model pair per metric. It does not build a
-pair-by-metric grid.
+shared scores are listed but do not make the tested family larger. The same flag
+also emits one advisory rank-stability finding for files with three or more
+scored models: a joint bootstrap of the mean-score ranking reports which
+leaderboard positions hold under resampling. Under the same flag, two-model
+files still get the pair family and a rank-stability SKIP. A multi-metric suite
+still compares one selected model pair per metric. It does not build a
+pair-by-metric grid and suppresses both all-pairs and rank stability.
 
 - **`bonferroni`** (default) - divide the threshold by the number of tests in
   the family (`alpha / k`). Simple and strict.

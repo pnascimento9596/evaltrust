@@ -11,6 +11,7 @@ from ..core.schema import EvalData, Finding, Status
 from ..versions import METHODOLOGY_VERSION, SCHEMA_VERSION
 from .allpairs import audit_all_pairs
 from .bayesian import audit_bayesian_win_probability
+from .rank_stability import audit_rank_stability
 from .benchmark_health import audit_benchmark_health
 from .judge_calibration import audit_judge_calibration
 from .judge_reliability import audit_judge_reliability
@@ -221,6 +222,7 @@ def _comparison(data, model_a, model_b, cfg, significant=None,
 
     if cfg.all_pairs:
         findings += audit_all_pairs(data, cfg)
+        findings += audit_rank_stability(data, cfg)
 
     if has_pair_scores:
         findings += audit_benchmark_health(

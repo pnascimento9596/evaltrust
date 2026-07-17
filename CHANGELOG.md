@@ -5,6 +5,10 @@ All notable changes to this project are documented here. The format is based on
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- **Rank stability under `--all-pairs`.** When all-pairs mode is on and a file
+  has three or more scored models, the audit reports an advisory bootstrap
+  rank-occupancy finding: which leaderboard positions hold under resampling of
+  examples or `group_id` clusters. Default output and the verdict stay unchanged.
 - **Judge reliability and calibration now run in single-model mode.** A
   single-model audit whose file carries multiple judges (and/or a gold judge)
   now reports inter-judge agreement and calibration-vs-gold instead of omitting
