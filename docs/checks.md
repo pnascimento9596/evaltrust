@@ -180,10 +180,22 @@ current release assumes:
 
 - **Paired data.** Both models are scored on the *same* examples, matched by id.
   Unpaired comparisons (different test sets) are out of scope.
-- **Two models per comparison.** A comparison is between two models. A single
-  model is supported too (Score Reliability, above). Multi-metric suites *are*
-  supported (a `metric` column, Bonferroni-corrected), but when a file has more
-  than two *models*, the two strongest by mean are compared rather than every pair.
+- **Default comparison is the top two models.** A single model is supported too
+  (Score Reliability, above). Multi-metric suites *are* supported (a `metric`
+  column, family-corrected). When a file has more than two models, the default
+  still compares the two strongest by mean. Opt into `--all-pairs` to test every
+  declared pair with one shared correction, and to run the advisory rank-stability
+  check on three or more scored models.
+- **Rank stability is advisory, not calibrated confidence.** Under `--all-pairs`,
+  the tool bootstraps example rows (or whole `group_id` clusters when present),
+  recomputes the mean-score ranking each time, and reports rank occupancy,
+  per-position retention, top-1 retention, and full-order retention. A position
+  is stable when its observed model holds it in at least `1 - alpha` of
+  resamples. Exact mean ties split occupancy evenly, so model-name order is never
+  counted as stability. Near ties are unstable by design. Model-dependent
+  missingness can make stability reflect coverage as well as quality. Repeated
+  runs (`Example.runs`) are not consumed. Two-model and multi-metric rank
+  stability are out of scope.
 - **Scalar scores.** Each score is a number. Pairwise-preference judgments
   (A-beats-B votes) are not yet modelled.
 - **Opinionated thresholds.** `alpha` and the equivalence margin are configurable;
