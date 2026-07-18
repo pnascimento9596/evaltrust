@@ -6,17 +6,24 @@ formats.
 
 Large-file streaming
 --------------------
-JSONL and CSV are read line-by-line via generator pipelines so the peak memory
-footprint is bounded by the streaming buffer rather than the file size.  The
-threshold is ``_STREAM_THRESHOLD`` bytes (default 64 MiB); files smaller than
-that are fully materialised first (preserving the original behaviour) so the
-fast path stays fast.
+JSONL and CSV are read line-by-line via generator pipelines so the raw file is
+never fully materialised as a single Python string.  The threshold is
+``_STREAM_THRESHOLD`` bytes (default 64 MiB); files smaller than that are fully
+materialised first (preserving the original behaviour) so the fast path stays
+fast.
+
+The win over the original ``Path.read_text()`` approach is string elimination:
+for files with large per-record fields (e.g. prompt/completion text) the raw
+byte payload is avoided entirely.  Peak memory is proportional to the row-dict
+list, not the raw file string.  Full single-pass streaming (O(1) in row count)
+requires refactoring ``detect_line_adapter`` / ``dicts_to_records`` to accept a
+one-row lookahead iterator; that is tracked in a TODO comment inside
+``_records_from_jsonl_iter``.
 
 JSON is handled the same way for small files.  For the two common large-file
 shapes — a top-level array or ``{"examples": [...]}`` — an optional iterative
-parser is used when the ``ijson`` library is available, keeping peak memory O(1)
-in the record count.  When ``ijson`` is absent the file is loaded normally; a
-warning is emitted only for files that exceed the threshold.
+parser is used when the ``ijson`` library is available.  When ``ijson`` is
+absent the file is loaded normally and a warning is emitted.
 """
 
 from __future__ import annotations
@@ -178,21 +185,19 @@ def _records_from_jsonl_iter(
     Memory model
     ------------
     The iterator is materialised into a ``list[dict]`` — one parsed object per
-    row — rather than a single raw-text string of the whole file.  This is a
-    meaningful reduction: a 1 GB JSONL file whose records have large string
-    fields (e.g. prompt/completion text) may produce a much smaller dict list
-    once non-score fields are parsed and held as Python objects.
+    row — rather than a single raw-text string of the whole file.  This eliminates
+    the full-file string allocation.  For files with large per-record string fields
+    (e.g. prompt/completion text) this is a meaningful reduction.
 
     Two-pass constraint
     -------------------
-    ``detect_line_adapter`` inspects *all* rows to recognise tool-specific
-    schemas, and ``dicts_to_records`` scans the first row's keys to determine
-    column layout before iterating.  Both require random-access to the full row
-    list, so a single-pass streaming path is not possible without refactoring
-    those interfaces.
+    ``detect_line_adapter`` inspects *all* rows to recognise tool-specific schemas,
+    and ``dicts_to_records`` scans the first row's keys to determine column layout.
+    Both require the full row list, so single-pass O(1) streaming is not yet
+    possible without refactoring those interfaces.
 
-    # TODO: refactor detect_line_adapter / dicts_to_records to accept an
-    # iterator with a one-row lookahead so the full list need not be retained.
+    # TODO: refactor detect_line_adapter / dicts_to_records to accept a one-row
+    # lookahead iterator so the full list need not be retained simultaneously.
     """
     rows = list(row_iter)
     if not rows:
@@ -227,6 +232,77 @@ def _load_csv_streamed(path: Path) -> EvalData:
 
 
 # ---------------------------------------------------------------------------
+# ijson helpers
+# ---------------------------------------------------------------------------
+
+def _ijson_import():
+    """Import ijson or raise ImportError with a clear message."""
+    try:
+        import ijson  # type: ignore[import]
+        return ijson
+    except ImportError:
+        return None
+
+
+def _ijson_parse_errors(ijson):
+    """Return the tuple of ijson-specific parse exception types.
+
+    Catching only these (rather than bare ``Exception``) lets real I/O errors
+    (``OSError``, ``PermissionError``, etc.) propagate to the caller.
+    """
+    # ijson guarantees JSONError; IncompleteJSONError is a subclass on all backends.
+    errors = [ijson.JSONError]
+    if hasattr(ijson, "IncompleteJSONError"):
+        errors.append(ijson.IncompleteJSONError)
+    return tuple(errors)
+
+
+def _normalize_ijson_value(v):
+    """Convert ijson Decimal numbers to float so coerce_score accepts them.
+
+    ijson yields ``decimal.Decimal`` for all JSON numbers to preserve precision.
+    ``coerce_score`` accepts ``int`` and ``float`` but not ``Decimal``, so we
+    convert here at the boundary.  Non-numeric values are returned unchanged.
+    """
+    try:
+        from decimal import Decimal
+        if isinstance(v, Decimal):
+            return float(v)
+    except ImportError:
+        pass
+    return v
+
+
+def _normalize_ijson_dict(d: dict) -> dict:
+    """Recursively convert Decimal values in an ijson-parsed dict to float."""
+    out = {}
+    for k, v in d.items():
+        if isinstance(v, dict):
+            out[k] = _normalize_ijson_dict(v)
+        elif isinstance(v, list):
+            out[k] = [
+                _normalize_ijson_dict(i) if isinstance(i, dict)
+                else _normalize_ijson_value(i)
+                for i in v
+            ]
+        else:
+            out[k] = _normalize_ijson_value(v)
+    return out
+
+
+def _peek_first_byte(path: Path) -> bytes:
+    """Return the first non-whitespace byte of a file without reading it all."""
+    with path.open("rb") as fh:
+        while True:
+            ch = fh.read(1)
+            if not ch or not ch.strip():
+                if not ch:
+                    return b""
+                continue
+            return ch
+
+
+# ---------------------------------------------------------------------------
 # Optional ijson-based streaming for large JSON files
 # ---------------------------------------------------------------------------
 
@@ -242,9 +318,8 @@ def _load_json_streamed(path: Path) -> EvalData | None:
     * Top-level array  ``[{...}, ...]``  → generic record-list adapter
     * ``{"examples": [{...}, ...]}``     → native nested adapter
     """
-    try:
-        import ijson  # type: ignore[import]
-    except ImportError:
+    ijson = _ijson_import()
+    if ijson is None:
         logger.warning(
             "File '%s' exceeds the %d MiB streaming threshold but 'ijson' is "
             "not installed. The file will be loaded fully into memory. Install "
@@ -254,14 +329,8 @@ def _load_json_streamed(path: Path) -> EvalData | None:
         )
         return None
 
-    # Peek at the first non-whitespace byte to decide shape.
-    with path.open("rb") as fh:
-        first_byte = b""
-        while not first_byte.strip():
-            ch = fh.read(1)
-            if not ch:
-                break
-            first_byte = ch
+    parse_errors = _ijson_parse_errors(ijson)
+    first_byte = _peek_first_byte(path)
 
     if first_byte == b"[":
         rows: list[dict] = []
@@ -272,35 +341,36 @@ def _load_json_streamed(path: Path) -> EvalData | None:
                         f"Expected a JSON array of objects in '{path.name}', "
                         f"got a {type(item).__name__} element."
                     )
-                rows.append(item)
+                rows.append(_normalize_ijson_dict(item))
         if not rows:
             raise UnknownFormatError("The JSON file has no data rows.")
-        raw = rows
-        return detect_adapter(raw).parse(raw)
+        return detect_adapter(rows).parse(rows)
 
     if first_byte == b"{":
-        rows = []
-        with path.open("rb") as fh:
-            top: dict = {}
-            try:
-                for item in ijson.kvitems(fh, ""):
-                    key, value = item
-                    if key == "examples":
-                        break
-                    top[key] = value
-            except Exception:
-                return None
-
+        # Collect ALL top-level keys in one pass, then stream the examples array
+        # in a second pass.  Stopping at the first "examples" key would silently
+        # drop any top-level fields that appear after it in the file.
+        top: dict = {}
         try:
             with path.open("rb") as fh:
-                rows = list(ijson.items(fh, "examples.item"))
-        except Exception:
+                for key, value in ijson.kvitems(fh, ""):
+                    if key != "examples":
+                        top[key] = _normalize_ijson_value(value)
+        except parse_errors:
+            return None
+
+        rows = []
+        try:
+            with path.open("rb") as fh:
+                for item in ijson.items(fh, "examples.item"):
+                    rows.append(_normalize_ijson_dict(item))
+        except parse_errors:
             return None
 
         if not rows:
             return None
 
-        raw_obj: dict = dict(top)
+        raw_obj = dict(top)
         raw_obj["examples"] = rows
         return detect_adapter(raw_obj).parse(raw_obj)
 
@@ -316,18 +386,19 @@ def _suite_from_json_streamed(path: Path) -> "OrderedDict[str, EvalData] | None"
 
     Returns ``None`` when ijson is unavailable or the shape is unsupported.
     """
-    try:
-        import ijson  # type: ignore[import]
-    except ImportError:
+    ijson = _ijson_import()
+    if ijson is None:
+        logger.warning(
+            "File '%s' exceeds the %d MiB streaming threshold but 'ijson' is "
+            "not installed. The suite will be loaded fully into memory. Install "
+            "'ijson' to enable low-memory JSON streaming.",
+            path.name,
+            _STREAM_THRESHOLD // (1024 * 1024),
+        )
         return None
 
-    with path.open("rb") as fh:
-        first_byte = b""
-        while not first_byte.strip():
-            ch = fh.read(1)
-            if not ch:
-                break
-            first_byte = ch
+    parse_errors = _ijson_parse_errors(ijson)
+    first_byte = _peek_first_byte(path)
 
     if first_byte == b"[":
         rows: list[dict] = []
@@ -338,7 +409,7 @@ def _suite_from_json_streamed(path: Path) -> "OrderedDict[str, EvalData] | None"
                         f"Expected a JSON array of objects in '{path.name}', "
                         f"got a {type(item).__name__} element."
                     )
-                rows.append(item)
+                rows.append(_normalize_ijson_dict(item))
         if not rows:
             raise UnknownFormatError("The JSON file has no data rows.")
         skipped: list = []
@@ -346,28 +417,28 @@ def _suite_from_json_streamed(path: Path) -> "OrderedDict[str, EvalData] | None"
         return records_to_suite(records, "generic", {"skipped_rows": len(skipped)})
 
     if first_byte == b"{":
-        rows = []
-        with path.open("rb") as fh:
-            top: dict = {}
-            try:
-                for item in ijson.kvitems(fh, ""):
-                    key, value = item
-                    if key == "examples":
-                        break
-                    top[key] = value
-            except Exception:
-                return None
-
+        # Collect ALL top-level keys first, then stream examples separately.
+        top: dict = {}
         try:
             with path.open("rb") as fh:
-                rows = list(ijson.items(fh, "examples.item"))
-        except Exception:
+                for key, value in ijson.kvitems(fh, ""):
+                    if key != "examples":
+                        top[key] = _normalize_ijson_value(value)
+        except parse_errors:
+            return None
+
+        rows = []
+        try:
+            with path.open("rb") as fh:
+                for item in ijson.items(fh, "examples.item"):
+                    rows.append(_normalize_ijson_dict(item))
+        except parse_errors:
             return None
 
         if not rows:
             return None
 
-        raw_obj: dict = dict(top)
+        raw_obj = dict(top)
         raw_obj["examples"] = rows
         adapter = detect_adapter(raw_obj)
         if hasattr(adapter, "parse_suite"):
@@ -388,8 +459,7 @@ def load(path: str) -> EvalData:
     tried as JSON, then JSONL, then CSV.
 
     Files larger than ``_STREAM_THRESHOLD`` bytes are read incrementally so
-    that peak memory is bounded by the streaming buffer rather than the file
-    size.
+    that the raw file is never held as a single string in memory.
     """
     p = Path(path)
     if not p.exists():
@@ -439,8 +509,6 @@ def load(path: str) -> EvalData:
 
     # ---- Unknown extension: try JSON → JSONL → CSV ----
     if large:
-        # Try JSON streaming first; if ijson is absent or shape unsupported,
-        # fall through to the normal full-text JSON loader before trying JSONL.
         try:
             result = _load_json_streamed(p)
             if result is not None:
@@ -461,7 +529,6 @@ def load(path: str) -> EvalData:
                 return _load_jsonl_streamed(p)
         except (ValueError, UnknownFormatError):
             pass
-        # Fall back to CSV streaming.
         return _load_csv_streamed(p)
 
     text = p.read_text(encoding="utf-8")
@@ -532,7 +599,6 @@ def load_suite(path: str) -> "OrderedDict[str, EvalData]":
             with p.open(encoding="utf-8") as fh:
                 head = fh.read(256)
             if head.lstrip().startswith("["):
-                # Mis-named JSON array: stream via suite-aware path.
                 result = _suite_from_json_streamed(p)
                 if result is not None:
                     return result
@@ -559,20 +625,17 @@ def load_suite(path: str) -> "OrderedDict[str, EvalData]":
 
     # ---- Unknown extension ----
     if large:
-        # Try suite-aware JSON streaming first.
         try:
             result = _suite_from_json_streamed(p)
             if result is not None:
                 return result
         except (UnknownFormatError, ValueError):
             pass
-        # ijson absent or shape unsupported: try full-text JSON.
         try:
             text = p.read_text(encoding="utf-8")
             return _suite_from_json(text)
         except (json.JSONDecodeError, UnknownFormatError):
             pass
-        # Try JSONL streaming.
         try:
             with p.open(encoding="utf-8") as fh:
                 head = fh.read(256)
@@ -583,7 +646,6 @@ def load_suite(path: str) -> "OrderedDict[str, EvalData]":
         rows = list(_iter_csv_rows(p))
         return _suite_from_rows(rows, "csv")
 
-    # Small file, unknown extension.
     text = p.read_text(encoding="utf-8")
     try:
         return _suite_from_json(text)
