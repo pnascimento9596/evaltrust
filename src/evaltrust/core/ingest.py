@@ -182,24 +182,22 @@ def _load_jsonl(text: str, name: str, path: Path | None = None) -> EvalData:
 def _records_from_jsonl_iter(
     row_iter: Iterable[dict], path: Path
 ) -> tuple[list[Record], str, dict]:
-    """Build records from a dict iterator (used for large JSONL files).
+    """Fallback record builder for wide-format and preference JSONL files.
 
-    Memory model
-    ------------
-    The iterator is materialised into a ``list[dict]`` — one parsed object per
-    row — rather than a single raw-text string of the whole file.  This eliminates
-    the full-file string allocation.  For files with large per-record string fields
-    (e.g. prompt/completion text) this is a meaningful reduction.
+    This function is only reached when ``_stream_records_from_jsonl`` cannot
+    handle the file — specifically wide-format files (no ``model`` column,
+    score columns are model names) and preference files.  Those formats require
+    ``_known_models`` / ``_is_preference_column`` which must scan all rows to
+    determine column layout, making true row-by-row streaming impossible without
+    a deeper refactor of those interfaces.
 
-    Two-pass constraint
-    -------------------
-    ``detect_line_adapter`` inspects *all* rows to recognise tool-specific schemas,
-    and ``dicts_to_records`` scans the first row's keys to determine column layout.
-    Both require the full row list, so single-pass O(1) streaming is not yet
-    possible without refactoring those interfaces.
+    For the common long-format case (``model`` + ``score`` columns),
+    ``_load_jsonl_streamed`` / ``_suite_from_jsonl_streamed`` route through
+    ``_stream_records_from_jsonl`` instead, which processes rows one at a time.
 
-    # TODO: refactor detect_line_adapter / dicts_to_records to accept a one-row
-    # lookahead iterator so the full list need not be retained simultaneously.
+    The iterator is materialised here into a ``list[dict]`` — one parsed object
+    per row — which is meaningfully smaller than the raw file string eliminated
+    by ``_iter_jsonl_lines``.
     """
     rows = list(row_iter)
     if not rows:
