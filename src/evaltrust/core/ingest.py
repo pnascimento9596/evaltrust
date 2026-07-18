@@ -216,7 +216,18 @@ def _records_from_jsonl_iter(
 
 
 def _load_jsonl_streamed(path: Path) -> EvalData:
-    """Stream a large JSONL file line-by-line."""
+    """Stream a large JSONL file with minimal memory.
+
+    For long-format files (``model`` + ``score`` columns) records are extracted
+    row-by-row without ever building the full row list.  Wide-format and
+    preference files fall back to ``_records_from_jsonl_iter`` which
+    materialises a list of dicts (but never a raw file string).
+    """
+    result = _stream_records_from_jsonl(path)
+    if result is not None:
+        records, source_format, metadata = result
+        return records_to_evaldata(records, source_format, metadata)
+    # Fallback: wide-format or preference — materialise row dicts only.
     records, source_format, metadata = _records_from_jsonl_iter(
         _iter_jsonl_lines(path), path
     )
@@ -579,9 +590,13 @@ def load_suite(path: str) -> "OrderedDict[str, EvalData]":
         return records_to_suite(records, source_format, metadata)
 
     def _suite_from_jsonl_streamed() -> "OrderedDict[str, EvalData]":
-        records, source_format, metadata = _records_from_jsonl_iter(
-            _iter_jsonl_lines(p), p
-        )
+        result = _stream_records_from_jsonl(p)
+        if result is not None:
+            records, source_format, metadata = result
+        else:
+            records, source_format, metadata = _records_from_jsonl_iter(
+                _iter_jsonl_lines(p), p
+            )
         return records_to_suite(records, source_format, metadata)
 
     # ---- CSV ----
@@ -688,3 +703,127 @@ def load_comparison(
         lb = f"{lb}_2"
 
     return merge_two(data_a, data_b, la, lb)
+
+
+# ---------------------------------------------------------------------------
+# Streaming record extraction (avoids full list materialisation for long-format)
+# ---------------------------------------------------------------------------
+
+def _stream_records_from_jsonl(
+    path: Path,
+) -> tuple[list[Record], str, dict] | None:
+    """Attempt to extract records from a large JSONL file with minimal memory.
+
+    Peeks the first row to detect the file layout:
+
+    * **lm-eval / openai-evals** (tool-specific adapters): these only inspect
+      ``rows[0]`` for detection, so we peek one row, check, and if matched
+      stream the rest row-by-row through the adapter's ``parse_lines``.
+      Note: ``parse_lines`` still receives a list — but we build it
+      incrementally so only the current row is ever held alongside the result
+      list, not the raw file string.
+
+    * **Long-format generic** (has ``model`` + ``score`` column in row 0):
+      extract records row-by-row; column layout is fixed from row 0 so no
+      second pass is needed.
+
+    * **Wide-format / preference**: fall back to ``None`` so the caller
+      materialises the full row list via ``_records_from_jsonl_iter``.
+
+    Returns ``(records, source_format, metadata)`` or ``None`` on fallback.
+    """
+    from ..adapters.common import (
+        DEFAULT_METRIC,
+        coerce_score,
+        Record,
+    )
+    from ..adapters.generic import (
+        _first_alias,
+        ID_KEYS,
+        MODEL_KEYS,
+        SCORE_KEYS,
+        JUDGE_KEYS,
+        METRIC_KEYS,
+        PREFERENCE_KEYS,
+    )
+
+    gen = _iter_jsonl_lines(path)
+
+    # Peek the first row.
+    try:
+        first = next(gen)
+    except StopIteration:
+        raise UnknownFormatError("The JSONL file has no data rows.")
+
+    # --- Try lm-eval adapter (only checks rows[0]) ---
+    lm_adapter = None
+    from ..adapters.lm_eval import LMEvalAdapter
+    _lm = LMEvalAdapter()
+    if _lm.detect_lines([first]):
+        lm_adapter = _lm
+
+    # --- Try openai-evals (scans for a spec row; peek up to 50 rows) ---
+    from ..adapters.openai_evals import OpenAIEvalsAdapter
+    _oai = OpenAIEvalsAdapter()
+    oai_adapter = None
+    if not lm_adapter:
+        # OpenAI Evals detection scans for a spec row anywhere in the file.
+        # We can't do this without reading ahead, so fall back for this case.
+        if _oai.detect_lines([first]):
+            oai_adapter = _oai
+
+    if lm_adapter or oai_adapter:
+        adapter = lm_adapter or oai_adapter
+        # Stream remaining rows into a list — still avoids the raw string.
+        rows = [first] + list(gen)
+        records, metadata = adapter.parse_lines(rows, path=path)
+        return records, adapter.source_format, metadata
+
+    # --- Generic long-format: model + score keys detectable from row 0 ---
+    keys = first.keys()
+    model_key = _first_alias(keys, MODEL_KEYS)
+    score_key = _first_alias(keys, SCORE_KEYS)
+    id_key = _first_alias(keys, ID_KEYS)
+    judge_key = _first_alias(keys, JUDGE_KEYS)
+    metric_key = _first_alias(keys, METRIC_KEYS)
+    preference_candidate = _first_alias(keys, PREFERENCE_KEYS)
+
+    # Wide-format or preference: need full scan — fall back.
+    if not (model_key and score_key) or preference_candidate:
+        return None
+
+    # Long-format: stream row-by-row.
+    records: list[Record] = []
+    skipped: list[str] = []
+
+    def _process_row(idx: int, row: dict) -> None:
+        ex_id = (
+            str(row[id_key])
+            if id_key and row.get(id_key) is not None
+            else str(idx)
+        )
+        judge = (
+            str(row[judge_key])
+            if judge_key and row.get(judge_key) is not None
+            else None
+        )
+        metric = (
+            str(row[metric_key])
+            if metric_key and row.get(metric_key) is not None
+            else DEFAULT_METRIC
+        )
+        try:
+            score = coerce_score(row[score_key])
+        except (ValueError, KeyError):
+            skipped.append(f"row {idx}: unreadable score {row.get(score_key)!r}")
+            return
+        records.append(Record(ex_id, str(row[model_key]), score, judge, metric))
+
+    _process_row(0, first)
+    for i, row in enumerate(gen, start=1):
+        _process_row(i, row)
+
+    if not records:
+        raise ValueError("No (example, model, score) records could be extracted")
+
+    return records, "jsonl", {"skipped_rows": len(skipped)}
