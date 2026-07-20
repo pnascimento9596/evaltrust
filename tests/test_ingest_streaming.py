@@ -463,3 +463,49 @@ class TestAcceptanceCriteria:
         assert streaming_called, "_iter_csv_rows was never called"
         assert data.n_examples == 20
         assert set(data.models) == {"A", "B"}
+
+
+class TestMultiMetricJsonSuite:
+    """Streamed and in-memory paths must produce identical suites for multi-metric JSON."""
+
+    def _make_toplevel_array(self, tmp_path):
+        """Top-level array [{"id","model","metric","score"}, ...] — the format
+        load_suite recognises for multi-metric JSON."""
+        records = [
+            {"id": "q1", "model": "A", "metric": "correctness", "score": 1},
+            {"id": "q1", "model": "B", "metric": "correctness", "score": 0},
+            {"id": "q1", "model": "A", "metric": "safety",      "score": 1},
+            {"id": "q1", "model": "B", "metric": "safety",      "score": 0},
+            {"id": "q2", "model": "A", "metric": "correctness", "score": 1},
+            {"id": "q2", "model": "B", "metric": "correctness", "score": 1},
+            {"id": "q2", "model": "A", "metric": "safety",      "score": 0},
+            {"id": "q2", "model": "B", "metric": "safety",      "score": 1},
+        ]
+        return _write(tmp_path, "multi.json", json.dumps(records))
+
+    def test_toplevel_array_streamed_matches_inmemory(self, tmp_path):
+        """Top-level array: streamed suite == in-memory suite for multi-metric JSON."""
+        path_str = self._make_toplevel_array(tmp_path)
+        normal = load_suite(path_str)
+        with mock.patch("evaltrust.core.ingest._STREAM_THRESHOLD", 0):
+            streamed = load_suite(path_str)
+        assert set(normal.keys()) == set(streamed.keys())
+        for metric in normal:
+            assert normal[metric].models == streamed[metric].models
+            assert normal[metric].n_examples == streamed[metric].n_examples
+
+    def test_streamed_path_does_not_collapse_metrics(self, tmp_path):
+        """Streamed path must preserve all metrics, not collapse to one."""
+        path_str = self._make_toplevel_array(tmp_path)
+        with mock.patch("evaltrust.core.ingest._STREAM_THRESHOLD", 0):
+            streamed = load_suite(path_str)
+        assert len(streamed) >= 2, (
+            f"Expected at least 2 metrics, got {list(streamed.keys())}"
+        )
+
+    def test_toplevel_array_streamed_metric_keys(self, tmp_path):
+        """Streamed path returns exactly the expected metric keys."""
+        path_str = self._make_toplevel_array(tmp_path)
+        with mock.patch("evaltrust.core.ingest._STREAM_THRESHOLD", 0):
+            streamed = load_suite(path_str)
+        assert set(streamed.keys()) == {"correctness", "safety"}
