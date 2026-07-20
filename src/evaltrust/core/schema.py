@@ -105,6 +105,42 @@ class EvalData:
         a, b = self.paired_scores(model_a, model_b)
         return b - a
 
+    def paired_run_differences(
+        self, model_a: str, model_b: str
+    ) -> list[np.ndarray]:
+        """Per-example arrays of per-run differences ``score_B - score_A``.
+
+        For each example that carries repeated ``runs`` for *both* models, the
+        runs are aligned by index and returned as one array of per-run
+        differences. Examples without runs for both models are omitted.
+
+        When the two models have unequal run counts for an example, the longer
+        list is silently truncated to the length of the shorter one (extra runs
+        are dropped), mirroring how the Repeatability pillar consumes runs. A
+        single run per model degrades gracefully: ``{"A": [1], "B": [0]}`` yields
+        one length-1 array ``[-1.0]``.
+
+        This exposes the raw run-to-run variance to the comparison layer so a
+        run-aware estimator can treat each example's runs as a cluster; the
+        default score-based path (``paired_scores`` / ``differences``) is
+        unchanged and nothing consumes this yet.
+        """
+        out: list[np.ndarray] = []
+        for ex in self.examples:
+            if not ex.runs:
+                continue
+            a_runs = ex.runs.get(model_a)
+            b_runs = ex.runs.get(model_b)
+            if not a_runs or not b_runs:
+                continue
+            r = min(len(a_runs), len(b_runs))
+            if r == 0:
+                continue
+            a = np.array(a_runs[:r], dtype=float)
+            b = np.array(b_runs[:r], dtype=float)
+            out.append(b - a)
+        return out
+
     @property
     def has_clusters(self) -> bool:
         """True when at least one example carries a ``group_id``."""
