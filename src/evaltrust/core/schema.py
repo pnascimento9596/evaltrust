@@ -111,9 +111,14 @@ class EvalData:
         """Per-example arrays of per-run differences ``score_B - score_A``.
 
         For each example that carries repeated ``runs`` for *both* models, the
-        runs are aligned by index (truncated to the shorter) and returned as one
-        array of per-run differences. Examples without runs for both models are
-        omitted.
+        runs are aligned by index and returned as one array of per-run
+        differences. Examples without runs for both models are omitted.
+
+        When the two models have unequal run counts for an example, the longer
+        list is silently truncated to the length of the shorter one (extra runs
+        are dropped), mirroring how the Repeatability pillar consumes runs. A
+        single run per model degrades gracefully: ``{"A": [1], "B": [0]}`` yields
+        one length-1 array ``[-1.0]``.
 
         This exposes the raw run-to-run variance to the comparison layer so a
         run-aware estimator can treat each example's runs as a cluster; the

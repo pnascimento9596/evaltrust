@@ -75,6 +75,14 @@ def test_paired_run_differences_yields_per_example_run_diffs():
     assert list(groups[1]) == [-1.0, -1.0]      # aligned to len 2: [0,0] - [1,1]
 
 
+def test_paired_run_differences_single_run_yields_length_one_array():
+    # Graceful degradation: one run per model is a valid (size-1) cluster.
+    d = _data(examples=[Example("q1", {"A": 1, "B": 0}, runs={"A": [1], "B": [0]})])
+    groups = d.paired_run_differences("A", "B")
+    assert len(groups) == 1
+    assert list(groups[0]) == [-1.0]            # [0] - [1]
+
+
 def test_paired_run_differences_empty_without_runs():
     d = _data(examples=[Example(str(i), {"A": 0, "B": 1}) for i in range(5)])
     assert d.paired_run_differences("A", "B") == []
