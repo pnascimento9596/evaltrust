@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format is based on
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- **Streaming ingestion for large JSONL and CSV files.** `core/ingest.py` no longer calls `Path.read_text()` for files above the 64 MiB threshold — the raw file string is never materialised. For the common long-format JSONL case (`model` + `score` columns), records are extracted row-by-row via `_stream_records_from_jsonl()` (measured peak ~0.21× file size on payload-heavy rows). CSV is consumed via `csv.DictReader` on an open file handle. Large `.json` files are also streamed when the optional `ijson` extra is installed (`pip install "evaltrust[streaming]"`); without it the file falls back to a full load with a logged warning. Records and `EvalData` remain O(n) in row count — this PR eliminates the full-file string, not the record list (fixes #80).
 - **`EvalData.paired_run_differences()`** exposes per-example, per-run
   differences (`score_B - score_A`, runs aligned by index) to the comparison
   layer. Additive and unused for now; it is the input for the upcoming run-aware
